@@ -10,24 +10,15 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 from builtins import *
-from math import nan
-
-from pathlib import Path
-
-from pandas.core.indexes.base import Index
-path = Path(__file__).resolve().parents[1]
 
 ##### Sensor reader packages #####
 from pyXTF import * # https://github.com/pktrigg/pyxtf
 from pyall import * # https://github.com/pktrigg/pyall
 from obspy import read
-import segyio
-
 
 ##### Basic packages #####
 import datetime
 import sys, os, glob
-from pathlib import Path
 import subprocess
 import pandas as pd
 import numpy as np
@@ -56,7 +47,7 @@ if len(sys.argv) >= 2:
         
 # GUI Configuration
 @Gooey(
-    program_name='Rename *.XTF using *.FBF/FBZ file',
+    program_name='Linename comparison and rename tool between SPL and sensors',
     progress_regex=r"^progress: (?P<current>\d+)/(?P<total>\d+)$",
     progress_expr="current / total * 100",
     hide_progress_msg=True,
@@ -81,7 +72,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.1.0',
+                'version': '0.1.1',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -171,7 +162,7 @@ def main():
         dest='xtfFolder',        
         metavar='XTF Folder Path',
         help='XTF Root path. This is the path where the *.xtf files to process are.',
-        default='C:\\Users\\patrice.ponchant\\Downloads\\XTF', 
+        #default='C:\\Users\\patrice.ponchant\\Downloads\\XTF', 
         widget='DirChooser',
         type=str,
         gooey_options=dict(full_width=True,))
@@ -267,6 +258,16 @@ def process(args, cmd):
     if splPosition.find('-Position') == -1:
         print('')
         sys.exit(stylize(f"The SPL file {splPosition} is not a position file, quitting", fg('red')))
+    
+    # Check if SPL folder is defined
+    if not splFolder:
+        print ('')
+        sys.exit(stylize('No SPL Folder was defined, quitting', fg('red')))
+    
+    # Check if Output folder is defined    
+    if not outputFolder:
+        print ('')
+        sys.exit(stylize('No Output Folder was defined, quitting', fg('red')))
     
     # Check if file is open before continue
     for fi in glob.glob(outputFolder + "\\*"):
@@ -465,6 +466,7 @@ def process(args, cmd):
     text2 = 'A total of ' + str(len(dfer)) + '/' + str(Tfbf_fbz) + ' Session SPL has/have no Linename information.' 
     textS = [bold, 'Summary_Process_Log', normal, ': Summary log of the processing']
     textFull = [bold, 'Full_List', normal, ': Full log list of all sensors without duplicated and skip files']
+    textMissingSPL = [bold, 'Missing_SPL', normal, ': List of all missing SPL file that do have sensors recorded']
     textMBES = [bold, 'MBES_NotMatching', normal, ': MBES log list of all files that do not match the SPL name; without duplicated and skip files']
     textSSS = [bold, 'SSS_NotMatching', normal, ': SSS log list of all files that do not match the SPL name; without duplicated and skip files']
     textSBP = [bold, 'SBP_NotMatching', normal, ': SBP log list of all files that do not match the SPL name; without duplicated and skip files']
@@ -472,13 +474,12 @@ def process(args, cmd):
     textSUHRS = [bold, 'SUHRS_NotMatching', normal, ': SUHRS log list of all files that do not match the SPL name; without duplicated and skip files']
     textDuplSPL = [bold, 'Duplicated_SPL_Name', normal, ': List of all duplicated SPL name']
     textDuplSensor = [bold, 'Duplicated_Sensor_Data', normal, ': List of all duplicated sensors files; Based on the start time']
-    textMissingSPL = [bold, 'Missing_SPL', normal, ': List of all missing SPL file that do have sensors recorded']
     textSkip = [bold, 'NoLineNameFound', normal, ': List of all SPL session without a line name in the columns LineName']
     
-    ListT = [textS, textFull, textMBES, textSSS, textSBP, textMAG, textSUHRS, textDuplSPL, textDuplSensor, textMissingSPL, textSkip]
-    ListHL = ['internal:Summary_Process_Log!A1', 'internal:Full_List!A1', 'internal:MBES_NotMatching!A1', 'internal:SSS_NotMatching!A1', 'internal:SBP_NotMatching!A1', 
-              'internal:MAG_NotMatching!A1','internal:SUHRS_NotMatching!A1', 'internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 
-              'internal:Missing_SPL!A1', 'internal:NoLineNameFound!A1']
+    ListT = [textS, textMissingSPL, textFull, textMBES, textSSS, textSBP, textMAG, textSUHRS, textDuplSPL, textDuplSensor, textSkip]
+    ListHL = ['internal:Summary_Process_Log!A1', 'internal:Full_List!A1', 'internal:Missing_SPL!A1', 'internal:MBES_NotMatching!A1', 
+              'internal:SSS_NotMatching!A1', 'internal:SBP_NotMatching!A1', 'internal:MAG_NotMatching!A1','internal:SUHRS_NotMatching!A1',
+              'internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 'internal:NoLineNameFound!A1']
                 
     worksheetS.write(0, 0, text1, bold)
     worksheetS.write(1, 0, text2, bold)
@@ -590,7 +591,7 @@ def SPL2CSV(SPLFileName, Path, SPLFormat):
         cmd = 'for %i in ("' + SPLFileName + '") do C:\ProgramData\Fugro\Starfix2018\Fugro.DescribedData2Ascii.exe -n3 %i > "' + SPLFilePath + '"'
     else:
         cmd = 'for %i in ("' + SPLFileName + '") do fbf2asc -n 3 -i %i Time LineName > "' + SPLFilePath + '"'    
-    subprocess.call(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    subprocess.call(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, close_fds=True) #https://github.com/pyinstaller/pyinstaller/wiki/Recipe-subprocess
     #subprocess.call(cmd, shell=True) ### For debugging
     
     # created the variables
@@ -607,11 +608,10 @@ def SPL2CSV(SPLFileName, Path, SPLFormat):
         first = first.replace(' ', ',', 2).replace(',', ' ', 1)
         last = last.replace(' ', ',', 2).replace(',', ' ', 1)
         LineName = first.split(',')[1].replace('\n', '').replace(' \r', '')
-    #print(last)
+
     SessionStart = first.split(',')[0]    
     SessionEnd = last.split(',')[0]    
-    #print(SessionStart, LineName, SessionEnd)
-    #print(f'LineName: "{LineName}"')    
+
     #cleaning  
     os.remove(SPLFilePath)
     
@@ -834,6 +834,7 @@ def sensorsfc(lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL, dfSummary
     
     # Creating the FINAL df
     dfMissingSPL = dfMissingSPL.append(dfSensors)
+    dfMissingSPL['Sensor Type'] = ssFormat
 
     dfFINAL.set_index('Session Start', inplace=True)
     dfSensors = dfSensors.dropna(subset=['Session Start']) # Drop Missing SPL
@@ -894,6 +895,10 @@ def get_col_widths(dataframe):
 ########################################################## 
 if __name__ == "__main__":
     now = datetime.datetime.now() # time the process
+    # Preparing your script for packaging https://chriskiehl.com/article/packaging-gooey-with-pyinstaller
+    # Prevent stdout buffering     
+    #nonbuffered_stdout = os.fdopen(sys.stdout.fileno(), 'w') #https://stackoverflow.com/questions/45263064/how-can-i-fix-this-valueerror-cant-have-unbuffered-text-i-o-in-python-3/45263101
+    #sys.stdout = nonbuffered_stdout
     main()
     print('')
     print("Process Duration: ", (datetime.datetime.now() - now)) # print the processing time. It is handy to keep an eye on processing performance.
