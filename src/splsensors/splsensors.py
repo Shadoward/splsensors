@@ -72,7 +72,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.1.2',
+                'version': '0.1.3',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -401,13 +401,14 @@ def process(args, cmd):
     dfMissingSPL = dfMissingSPL.drop(columns=["Session Start", "Session End", "Vessel Name", "SPL LineName", "Sensor New LineName"])
     dfMissingSPL = dfMissingSPL[["Sensor Start", "Sensor FileName", "FilePath"]]
     
-    dfNoLineNameFound = dfFINAL[dfFINAL['SPL']=='NoLineNameFound']
+    dfSPLProblem = dfFINAL[dfFINAL['SPL'].isin(['NoLineNameFound', 'EmptySPL', 'SPLtoSmall'])]
+    dfSPLProblem = dfSPLProblem.drop_duplicates(subset='Session Start', keep='first')
     
     dfMBES = dfFINAL[dfFINAL.apply(lambda row: '[WRONG]' in str(row.MBES), axis=1)].sort_values('Session Start')
     dfMBES = dfMBES.append(dfFINAL[dfFINAL.MBES.isnull()].sort_values('Session Start')) #https://stackoverflow.com/questions/29314033/drop-rows-containing-empty-cells-from-a-pandas-dataframe/56708633#56708633
     
     dfSSS = dfFINAL[dfFINAL.apply(lambda row: '[WRONG]' in str(row.SSS), axis=1)].sort_values('Session Start')
-    dfSSS = dfSSS.append(dfFINAL[dfFINAL.SSS.isnull()].sort_values('Session Start')) 
+    dfSSS = dfSSS.append(dfFINAL[dfFINAL.SSS.isnull()].sort_values('Session Start'))
     dfSSS = dfSSS[["Session Start", "Session End", "Vessel Name", "SPL", "SSS", "MBES", "SBP", "MAG", "SUHRS"]]
     
     dfSBP = dfFINAL[dfFINAL.apply(lambda row: '[WRONG]' in str(row.SBP), axis=1)].sort_values('Session Start')
@@ -437,7 +438,7 @@ def process(args, cmd):
     dfSUHRS.to_excel(writer, sheet_name='SUHRS_NotMatching')    
     dfDuplSPL.sort_values('SPL').to_excel(writer, sheet_name='Duplicated_SPL_Name')
     dfDuplSensor.sort_values('Sensor Start').to_excel(writer, sheet_name='Duplicated_Sensor_Data')    
-    dfNoLineNameFound.sort_values('Session Start').to_excel(writer, sheet_name='NoLineNameFound')
+    dfSPLProblem.sort_values('Session Start').to_excel(writer, sheet_name='SPL_Problem')
     dfSkip.to_excel(writer, sheet_name='Skip_SSS_Files')
     
     workbook  = writer.book        
@@ -452,9 +453,9 @@ def process(args, cmd):
     worksheetDuplSPL = writer.sheets['Duplicated_SPL_Name']
     worksheetDuplSensor = writer.sheets['Duplicated_Sensor_Data']
     worksheetMissingSPL = writer.sheets['Missing_SPL']
-    worksheetSkip = writer.sheets['NoLineNameFound']
+    worksheetSkip = writer.sheets['SPL_Problem']
     
-    ListDF = [dfFINAL, dfMBES, dfSSS, dfSBP, dfMAG, dfSUHRS, dfDuplSPL, dfDuplSensor, dfMissingSPL, dfNoLineNameFound, dfSkip]
+    ListDF = [dfFINAL, dfMBES, dfSSS, dfSBP, dfMAG, dfSUHRS, dfDuplSPL, dfDuplSensor, dfMissingSPL, dfSPLProblem, dfSkip]
     ListWS = [worksheetFull, worksheetMBES, worksheetSSS, worksheetSBP, worksheetMAG, worksheetSUHRS, 
                 worksheetDuplSPL, worksheetDuplSensor, worksheetMissingSPL, worksheetSkip]
     ListFC = [worksheetFull, worksheetMBES, worksheetSSS, worksheetSBP, worksheetMAG, worksheetSUHRS]
@@ -491,12 +492,12 @@ def process(args, cmd):
     textSUHRS = [bold, 'SUHRS_NotMatching', normal, ': SUHRS log list of all files that do not match the SPL name; without duplicated and skip files']
     textDuplSPL = [bold, 'Duplicated_SPL_Name', normal, ': List of all duplicated SPL name']
     textDuplSensor = [bold, 'Duplicated_Sensor_Data', normal, ': List of all duplicated sensors files; Based on the start time']
-    textSkip = [bold, 'NoLineNameFound', normal, ': List of all SPL session without a line name in the columns LineName']
+    textSkip = [bold, 'SPL_Problem', normal, ': List of all SPL session without a line name in the columns LineName or are empty ou too small']
     
     ListT = [textS, textMissingSPL, textFull, textMBES, textSSS, textSBP, textMAG, textSUHRS, textDuplSPL, textDuplSensor, textSkip]
     ListHL = ['internal:Summary_Process_Log!A1', 'internal:Full_List!A1', 'internal:Missing_SPL!A1', 'internal:MBES_NotMatching!A1', 
               'internal:SSS_NotMatching!A1', 'internal:SBP_NotMatching!A1', 'internal:MAG_NotMatching!A1','internal:SUHRS_NotMatching!A1',
-              'internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 'internal:NoLineNameFound!A1']
+              'internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 'internal:SPL_Problem!A1']
                 
     worksheetS.write(0, 0, text1, bold)
     worksheetS.write(1, 0, text2, bold)
@@ -589,9 +590,9 @@ def process(args, cmd):
     # Empty Linename columns Log
     if not dfer.empty:
         print("")
-        print(f"A total of {len(dfer)}/{Tfbf_fbz} Session SPL has/have no Linename information.")
-        print(f"Please check the NoLineNameFound sheet in the _{vessel}_FINAL_Log.xlsx for more information.")
-        #dfer.to_csv(outputFolder + "\\" + vessel + "_NoLineNameFound_log.csv", index=True)
+        print(f"A total of {len(dfer)}/{Tfbf_fbz} Session SPL has/have no Linename information or Empty Session.")
+        print(f"Please check the SPL_Problem sheet in the _{vessel}_FINAL_Log.xlsx for more information.")
+        #dfer.to_csv(outputFolder + "\\" + vessel + "_SPL_Problem_log.csv", index=True)
     print('')
     print(f'Logs can be found in {outputFolder}.\n')
           
