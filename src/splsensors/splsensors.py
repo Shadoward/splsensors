@@ -18,7 +18,7 @@ from obspy import read
 
 ##### Basic packages #####
 import datetime
-import sys, os, glob
+import sys, os, glob, shutil
 import subprocess
 import pandas as pd
 import numpy as np
@@ -92,35 +92,12 @@ def main():
     desc = "Linename comparison and rename tool between SPL and sensors"    
     parser = GooeyParser(description=desc)
     
-    splopt = parser.add_argument_group('SPL Options')
-    sensorsopt = parser.add_argument_group('Sensors Options')
-    outputsopt = parser.add_argument_group('Output Options')
-    additionalopt = parser.add_argument_group('Additional Options')
+    splopt = parser.add_argument_group('SPL Options', gooey_options={'columns': 1})
+    sensorsopt = parser.add_argument_group('Sensors Options', gooey_options={'columns': 1})
+    outputsopt = parser.add_argument_group('Output Options', gooey_options={'columns': 1})
+    additionalopt = parser.add_argument_group('Additional Options', gooey_options={'columns': 1})
+    renameopt = parser.add_argument_group('Rename Options')
      
-    # Additional Arguments
-    additionalopt.add_argument(
-        '-r', '--recursive',
-        dest='recursive',
-        metavar='Recurse into the subfolders?', 
-        choices=['yes', 'no'], 
-        default='yes')
-    additionalopt.add_argument(
-        '-n', '-rename',
-        dest='rename',
-        metavar='Rename the files?', 
-        choices=['yes', 'no'], 
-        default='no')
-    additionalopt.add_argument(
-        '-e', '--excludeFolder', 
-        #action='store',
-        dest='excludeFolder',
-        metavar='List of folder to be exclude', 
-        widget='TextField',
-        type=str,
-        #default='DNP, DoNotProcess',
-        help='List all folder that need to be excluded from the recurcive search.\n(eg.: DNP,DoNotProcess) Comma separated and NO WHITESPACE!\nNote: This just apply to the sensors folders',
-        gooey_options=dict(full_width=True,))       
-    
     # SPL Arguments
     splopt.add_argument(
         '-i',
@@ -129,21 +106,19 @@ def main():
         dest='splFolder',       
         metavar='SPL Root Path', 
         help='This is the path where the *.fbf/*.fbz/*.pos files to process are. (Root Session Folder)',
-        #default='C:\\Users\\patrice.ponchant\\Downloads\\NEL',
-        #default='S:\\JOBS\\2020\\20030002_Shell_FBR_MF\\B2B_FromVessel\\Navigation\\Starfix_Logging\\RawData', 
-        widget='DirChooser',
-        type=str,
-        gooey_options=dict(full_width=True,))
+        #default_path='C:\\Users\\patrice.ponchant\\Downloads\\NEL',
+        #default_path='S:\\JOBS\\2020\\20030002_Shell_FBR_MF\\B2B_FromVessel\\Navigation\\Starfix_Logging\\RawData', 
+        widget='DirChooser')
+        #type=str,)
     splopt.add_argument(
         '-p', '--splPosition', 
         #action='store',
         dest='splPosition',
         metavar='SPL Position File Name', 
         widget='TextField',
-        type=str,
+        #type=str,
         #default='FugroBrasilis-CRP-Position',
-        help='SPL position file to be use to rename the sensor without extention.',
-        gooey_options=dict(full_width=True,))
+        help='SPL position file to be use to rename the sensor without extention.',)
         
     # Sensors Arguments
     sensorsopt.add_argument(
@@ -152,30 +127,27 @@ def main():
         dest='allFolder',        
         metavar='ALL Folder Path',
         help='ALL Root path. This is the path where the *.all files to process are.',
-        #default='C:\\Users\\patrice.ponchant\\Downloads\\ALL', 
-        widget='DirChooser',
-        type=str,
-        gooey_options=dict(full_width=True,))
+        #default_path='C:\\Users\\patrice.ponchant\\Downloads\\ALL', 
+        widget='DirChooser')
+        #type=str,)
     sensorsopt.add_argument(
         '-X', '--xtfFolder', 
         #action='store',
         dest='xtfFolder',        
         metavar='XTF Folder Path',
         help='XTF Root path. This is the path where the *.xtf files to process are.',
-        #default='C:\\Users\\patrice.ponchant\\Downloads\\XTF', 
-        widget='DirChooser',
-        type=str,
-        gooey_options=dict(full_width=True,))
+        #default_path='C:\\Users\\patrice.ponchant\\Downloads\\XTF', 
+        widget='DirChooser')
+        #type=str,)
     sensorsopt.add_argument(
         '-S', '--sgySBPFolder', 
         #action='store',
         dest='sgySBPFolder',        
         metavar='SGY/SEG/SEGY SBP Folder Path',
         help='SGY/SEG/SEGY SBP Root path. This is the path where the *.sgy/*.seg/*.segy files to process are.',
-        #default='C:\\Users\\patrice.ponchant\\Downloads\\SGYSBP', 
-        widget='DirChooser',
-        type=str,
-        gooey_options=dict(full_width=True,))
+        #default_path='C:\\Users\\patrice.ponchant\\Downloads\\SGYSBP', 
+        widget='DirChooser')
+        #type=str,)
     #sensorsopt.add_argument(
     #    '-E', '--ses3SBPFolder', 
     #    #action='store',
@@ -185,39 +157,68 @@ def main():
     #    default='C:\\Users\\patrice.ponchant\\Downloads\\SES3SBP', 
     #    widget='DirChooser',
     #    type=str,
-    #    gooey_options=dict(full_width=True,))
+    # )
     sensorsopt.add_argument(
         '-M', '--csvMAGFolder', 
         #action='store',
         dest='csvMAGFolder',        
         metavar='CSV MAG Folder Path',
         help='CSV MAG Root path. This is the path where the *.csv files to process are.',
-        #default='C:\\Users\\patrice.ponchant\\Downloads\\CSVMAG', 
-        widget='DirChooser',
-        type=str,
-        gooey_options=dict(full_width=True,))
+        #default_path='C:\\Users\\patrice.ponchant\\Downloads\\CSVMAG', 
+        widget='DirChooser')
+        #type=str,)
     sensorsopt.add_argument(
         '-H', '--sgySUHRSFolder', 
         #action='store',
         dest='sgySUHRSFolder',        
         metavar='SGY/SEG/SEGY SUHRS Folder Path',
         help='SGY/SEG/SEGY SUHRS Root path. This is the path where the *.sgy/*.seg/*.segy files to process are.',
-        #default='C:\\Users\\patrice.ponchant\\Downloads\\SGYSUHRS', 
-        widget='DirChooser',
-        type=str,
-        gooey_options=dict(full_width=True,))
+        #default_path='C:\\Users\\patrice.ponchant\\Downloads\\SGYSUHRS', 
+        widget='DirChooser')
+        #type=str,)
     
     # Output Arguments
     outputsopt.add_argument(
         '-o', '--output',
         #action='store',
         dest='outputFolder',
-        metavar='Output Logs Folder', 
-        widget='DirChooser',
+        metavar='Output Logs Folder',  
+        help='Output folder to save all the logs files.',      
+        #type=str,
+        #default_path='C:\\Users\\patrice.ponchant\\Downloads\\LOGS',
+        widget='DirChooser')
+    
+    # Additional Arguments
+    additionalopt.add_argument(
+        '-r', '--recursive',
+        dest='recursive',
+        metavar='Recurse into the subfolders?', 
+        choices=['yes', 'no'], 
+        default='yes')
+    additionalopt.add_argument(
+        '-m', '--move',
+        dest='move',
+        metavar='Move MAG and SUHRS in the vessel folder?', 
+        help='This will create and vessel folder in the sensor folder basaed on the SPL name vessel and move the files to this.',
+        choices=['yes', 'no'], 
+        default='yes')
+    additionalopt.add_argument(
+        '-e', '--excludeFolder', 
+        #action='store',
+        dest='excludeFolder',
+        metavar='List of folder to be exclude', 
+        widget='TextField',
         type=str,
-        #default='C:\\Users\\patrice.ponchant\\Downloads\\LOGS',
-        help='Output folder to save all the logs files.',
-        gooey_options=dict(full_width=True,))
+        #default='DNP, DoNotProcess',
+        help='List all folder that need to be excluded from the recurcive search.\n(eg.: DNP,DoNotProcess) Comma separated and NO WHITESPACE!\nNote: This just apply to the sensors folders')       
+
+    # Rename Option
+    renameopt.add_argument(
+        '-n', '--rename',
+        dest='rename',
+        metavar='Rename the files?', 
+        choices=['yes', 'no'], 
+        default='no')
     
     # Use to create help readme.md. TO BE COMMENT WHEN DONE
     # if len(sys.argv)==1:
@@ -242,12 +243,13 @@ def process(args, cmd):
     sgySUHRSFolder = args.sgySUHRSFolder
     outputFolder = args.outputFolder
     excludeFolder = args.excludeFolder
+    move = args.move
     
     # Defined Global Dataframe
     dfFINAL = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "SPL", "MBES", "SBP", "SSS", "MAG", "SUHRS"])
     dfSPL = pd.DataFrame(columns = ["Session Start", "Session End", "SPL LineName"])       
     dfer = pd.DataFrame(columns = ["SPLPath"])
-    dfSummary = pd.DataFrame(columns = ["Sensor", "Processed Files", "Duplicated Files", "Wrong Timestamp (SBP)", "Renamed Files"])
+    dfSummary = pd.DataFrame(columns = ["Sensor", "Processed Files", "Duplicated Files", "Wrong Timestamp (SBP)", "Moved Files"])
     dfMissingSPL = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "Sensor Start",
                                            "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"])
     dfDuplSensor = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "Sensor Start",
@@ -337,9 +339,9 @@ def process(args, cmd):
     ##########################################################
     #                     Reading SPL                        #
     ##########################################################    
-    dfSPL, dfer = splfc(fbfListFile, 'FBF', dfSPL, dfer, outputFolder)
-    dfSPL, dfer = splfc(fbzListFile, 'FBZ', dfSPL, dfer, outputFolder)
-    dfSPL, dfer = splfc(posListFile, 'POS', dfSPL, dfer, outputFolder)
+    dfSPL, dfer = splfc(fbfListFile, 'FBF', dfSPL, dfer, outputFolder, cmd)
+    dfSPL, dfer = splfc(fbzListFile, 'FBZ', dfSPL, dfer, outputFolder, cmd)
+    dfSPL, dfer = splfc(posListFile, 'POS', dfSPL, dfer, outputFolder, cmd)
     
     # Copy the needed info from dfSPl to the dfFINAL
     dfFINAL['Session Start'] = dfSPL['Session Start']  
@@ -365,9 +367,20 @@ def process(args, cmd):
     if magListFile: 
         dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc(magListFile, 'MAG', '.csv', cmd, args.rename, outputFolder,
                                                                    dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        if move == 'yes':
+            lsFile = outputFolder + "\\" + vessel + "_MAG_Full_Log.csv"
+            VesselFolder = os.path.join(csvMAGFolder, vessel)
+            WrongFolder = os.path.join(csvMAGFolder, 'WRONG')
+            dfSummary = mvSensorFile (lsFile, VesselFolder, WrongFolder, cmd, 'MAG', dfSummary) 
+    
     if suhrsListFile: 
         dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc(suhrsListFile, 'SUHRS', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
-                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel) 
+                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        if move == 'yes':
+            lsFile = outputFolder + "\\" + vessel + "_SUHRS_Full_Log.csv"
+            VesselFolder = os.path.join(sgySUHRSFolder, vessel)
+            WrongFolder = os.path.join(sgySUHRSFolder, 'WRONG')
+            dfSummary = mvSensorFile (lsFile, VesselFolder, WrongFolder, cmd, 'SUHRS', dfSummary) 
 
     ##########################################################
     #                  Excel Exportation                     #
@@ -615,9 +628,17 @@ def SPL2CSV(SPLFileName, Path):
         
     else:
         with open(SPLFilePath, 'rb') as fh:
+            # 2020/10/17 03:15:24.420, "M1308"
             first = next(fh).decode()
-            fh.seek(-1024, os.SEEK_END)
-            last = fh.readlines()[-1].decode()
+            try:
+                fh.seek(-200, os.SEEK_END) # 2 times size of the line
+                last = fh.readlines()[-1].decode()
+            except: # file less than 3 lines not working
+                er = SPLFileName
+                lnValue = "SPLtoSmall"
+                SessionStart = first.split(',')[0] 
+                SessionEnd = np.datetime64('NaT')
+                return SessionStart, SessionEnd, lnValue, er
 
     LineName = first.split(',')[1].replace(' ', '', 1).replace('"', '').replace('\n', '').replace('\r', '')
 
@@ -643,7 +664,7 @@ def SPL2CSV(SPLFileName, Path):
         return SessionStart, SessionEnd, lnValue, er
 
 # SPL convertion
-def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder):
+def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder, cmd):
     """
     Reading SPL Files (FBF and FBZ)
     """
@@ -657,16 +678,9 @@ def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder):
     for index, n in enumerate(splList): 
         SessionStart, SessionEnd, LineName, er = SPL2CSV(n, outputFolder)        
         dfSPL = dfSPL.append(pd.Series([SessionStart, SessionEnd, LineName], 
-                                index=dfSPL.columns ), ignore_index=True)
-        
-        if er: dfer = dfer.append(pd.Series([er], index=dfer.columns ), ignore_index=True)
-                
-        if cmd:
-            pbar.update(1)
-        else:
-            print_progress(index, len(splList)) # to have a nice progress bar in the GUI
-            if index % math.ceil(len(splList)/10) == 0: # decimate print
-                print(f"Files Process: {index+1}/{len(splList)}")                     
+                                index=dfSPL.columns ), ignore_index=True)        
+        if er: dfer = dfer.append(pd.Series([er], index=dfer.columns ), ignore_index=True)        
+        progressBar(cmd, pbar, index, splList)                   
 
     # Format datetime
     dfSPL['Session Start'] = pd.to_datetime(dfSPL['Session Start'], format='%Y/%m/%d %H:%M:%S.%f') # format='%d/%m/%Y %H:%M:%S.%f' format='%Y/%m/%d %H:%M:%S.%f' 
@@ -749,14 +763,8 @@ def sensorsfc(lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL, dfSummary
              
         # Add the Sensor Info in a df
         #print(f'fStart {ssFormat} = {fStart}')
-        dfSensors = dfSensors.append(pd.Series(["","", "", fStart, f, fName, "", ""], index=dfSensors.columns), ignore_index=True)  
-        
-        if cmd:
-            pbar.update(1)
-        else:
-            print_progress(index, len(lsFile)) # to have a nice progress bar in the GUI
-            if index % math.ceil(len(lsFile)/10) == 0: # decimate print
-                print(f"Files Process: {index+1}/{len(lsFile)}") 
+        dfSensors = dfSensors.append(pd.Series(["","", "", fStart, f, fName, "", ""], index=dfSensors.columns), ignore_index=True)        
+        progressBar(cmd, pbar, index, lsFile)
                       
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowSensor)) # cmd vs GUI
 
@@ -792,6 +800,8 @@ def sensorsfc(lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL, dfSummary
             SensorNewName = FolderName + '\\' + SensorName + '_' + splName + SensorExt
             dftmp = dftmp.append(pd.Series([splStart, splEnd, vessel, SensorStart, SensorFile, SNameCond, splName, SensorNewName], 
                                 index=dftmp.columns), ignore_index=True)
+            
+            
             # rename the sensor file           
             if rename == 'yes':
                 if cmd:
@@ -872,6 +882,53 @@ def sensorsfc(lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL, dfSummary
     
     return dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip
 
+# Move MAG and SUHRS function
+def mvSensorFile (lsFile, VesselFolder, WrongFolder, cmd, ssFormat, dfSummary):
+    """
+    Moving MAG and SUHRS in the vessel folder or WRONG folder based on SPL Files
+    """
+    print('')
+    print('##################################################')
+    print(f'MOVING {ssFormat} FILES')
+    print('##################################################')
+    nowmove = datetime.datetime.now() # record time of the subprocess
+           
+    dfmove = pd.read_csv(lsFile, usecols=[3,4,5])
+    dfmove = dfmove[~dfmove['Vessel Name'].isnull()]
+    
+    dfOK = dfmove[dfmove.apply(lambda row: '[OK]' in str(row['Sensor FileName']), axis=1)]
+    dfWRONG = dfmove[dfmove.apply(lambda row: '[WRONG]' in str(row['Sensor FileName']), axis=1)]
+    lsOK = dfOK['FilePath'].tolist()
+    lsWRONG = dfWRONG['FilePath'].tolist() 
+    
+    count = len(lsOK) + len(dfWRONG)
+          
+    if not os.path.exists(VesselFolder):
+        os.mkdir(VesselFolder)
+    if not os.path.exists(WrongFolder):
+        os.mkdir(WrongFolder)
+    
+    pbar = tqdm(total=count) if cmd else print(f"Moving the OK files to {VesselFolder}.\nNote: Output show file counting every {math.ceil(count/10)}") #cmd vs GUI 
+    
+    i = 0
+    for f in lsOK:
+        i += 1
+        newpath = os.path.join(VesselFolder, os.path.basename(f))            
+        shutil.move(f, newpath)
+        progressBar(cmd, pbar, i, lsOK)    
+    for f in lsWRONG:
+        newpath = newpath = os.path.join(WrongFolder, os.path.basename(f))
+        shutil.move(f, newpath)
+        
+    # Add the Sumary Info in a df
+    #df.at[index, col] = val https://stackoverflow.com/questions/13842088/set-value-for-particular-cell-in-pandas-dataframe-using-index
+    dfSummary.set_index('Sensor', inplace=True)
+    dfSummary.at[ssFormat, 'Moved Files'] = count
+    dfSummary = dfSummary.reset_index() # Reset index if not the column Session Start will be missing              
+    pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowmove)) # cmd vs GUI
+    
+    return dfSummary
+    
 
 # Others function
 # from https://www.pakstech.com/blog/python-gooey/

@@ -40,7 +40,7 @@ setup(
     license=license,
     packages=find_namespace_packages(where='src'),
     package_dir={'': 'src'},
-    keywords='FBF FBZ MBES SSS SBP MAG Comparison Rename',
+    keywords='FBF FBZ POS MBES SSS SBP MAG Comparison Rename',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Natural Language :: English',
