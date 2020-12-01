@@ -72,7 +72,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.1.1',
+                'version': '0.1.2',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -128,7 +128,7 @@ def main():
         #action='store',
         dest='splFolder',       
         metavar='SPL Root Path', 
-        help='This is the path where the *.fbf/*.fbz files to process are. (Root Session Folder)',
+        help='This is the path where the *.fbf/*.fbz/*.pos files to process are. (Root Session Folder)',
         #default='C:\\Users\\patrice.ponchant\\Downloads\\NEL',
         #default='S:\\JOBS\\2020\\20030002_Shell_FBR_MF\\B2B_FromVessel\\Navigation\\Starfix_Logging\\RawData', 
         widget='DirChooser',
@@ -293,6 +293,7 @@ def process(args, cmd):
     suhrsListFile = []
     fbzListFile = []
     fbfListFile = []
+    posListFile = []
        
     if args.recursive == 'no':
         print(f'Start Listing for {allFolder}') if args.allFolder is not None else []
@@ -317,10 +318,12 @@ def process(args, cmd):
         #ses3ListFile = listFile(ses3SBPFolder, "ses3", set(exclude)) if args.ses3SBPFolder is not None else []
         magListFile = listFile(csvMAGFolder, "csv", set(exclude)) if args.csvMAGFolder is not None else []
         suhrsListFile = listFile(sgySUHRSFolder, ('seg', 'sgy', 'segy'), set(exclude)) if args.sgySUHRSFolder is not None else []
-       
+    
+    #### Not very efficient, will need to improve later   
     print(f'Start Listing for {splFolder}')
     fbzListFile = glob.glob(splFolder + "\\**\\" + splPosition + ".fbz", recursive=True)
-    fbfListFile = glob.glob(splFolder + "\\**\\" + splPosition + ".fbf", recursive=True)       
+    fbfListFile = glob.glob(splFolder + "\\**\\" + splPosition + ".fbf", recursive=True)
+    posListFile = glob.glob(splFolder + "\\**\\" + splPosition + ".pos", recursive=True)            
     print("Subprocess Duration: ", (datetime.datetime.now() - nowLS))
     
     # Check if SPL files found
@@ -329,13 +332,14 @@ def process(args, cmd):
         sys.exit(stylize('No SPL files were found, quitting', fg('red')))
     
     print('')
-    print(f'Total of files that will be processed: \n {len(fbfListFile)} *.fbf \n {len(fbzListFile)} *.fbz \n {len(allListFile)} *.all \n {len(xtfListFile)} *.xtf \n {len(sbpListFile)} *.sgy/*.seg/*.segy (SBP) \n {len(magListFile)} *.csv (MAG) \n {len(suhrsListFile)} *.sgy/*.seg/*.segy (SUHRS)') 
+    print(f'Total of files that will be processed: \n {len(fbfListFile)} *.fbf \n {len(fbzListFile)} *.fbz \n {len(posListFile)} *.pos \n {len(allListFile)} *.all \n {len(xtfListFile)} *.xtf \n {len(sbpListFile)} *.sgy/*.seg/*.segy (SBP) \n {len(magListFile)} *.csv (MAG) \n {len(suhrsListFile)} *.sgy/*.seg/*.segy (SUHRS)') 
     
     ##########################################################
     #                     Reading SPL                        #
     ##########################################################    
     dfSPL, dfer = splfc(fbfListFile, 'FBF', dfSPL, dfer, outputFolder)
     dfSPL, dfer = splfc(fbzListFile, 'FBZ', dfSPL, dfer, outputFolder)
+    dfSPL, dfer = splfc(posListFile, 'POS', dfSPL, dfer, outputFolder)
     
     # Copy the needed info from dfSPl to the dfFINAL
     dfFINAL['Session Start'] = dfSPL['Session Start']  
@@ -376,7 +380,7 @@ def process(args, cmd):
     nowExcel = datetime.datetime.now()  # record time of the subprocess 
     
     # For stats
-    Tfbf_fbz = len(fbfListFile) + len(fbzListFile)
+    Tfbf_fbz = len(fbfListFile) + len(fbzListFile) + len(posListFile)
     Tsensors = len(allListFile) + len(xtfListFile) + len(sbpListFile) + len(magListFile) + len(suhrsListFile)
     
     # creating the df for every sheet in excel
@@ -583,31 +587,44 @@ def process(args, cmd):
 ########################################################## 
 
 ##### Convert FBF/FBZ to CSV #####
-def SPL2CSV(SPLFileName, Path, SPLFormat):
+def SPL2CSV(SPLFileName, Path):
     ##### Convert FBZ to CSV #####
-    FileName = os.path.splitext(os.path.basename(SPLFileName))[0]    
+    FileName = os.path.splitext(os.path.basename(SPLFileName))[0] 
+    #print(SPLFileName)   
     SPLFilePath = Path + "\\" + FileName + '.txt'
-    if SPLFormat == 'FBZ':   
-        cmd = 'for %i in ("' + SPLFileName + '") do C:\ProgramData\Fugro\Starfix2018\Fugro.DescribedData2Ascii.exe -n3 %i > "' + SPLFilePath + '"'
-    else:
-        cmd = 'for %i in ("' + SPLFileName + '") do fbf2asc -n 3 -i %i Time LineName > "' + SPLFilePath + '"'    
-    subprocess.call(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, close_fds=True) #https://github.com/pyinstaller/pyinstaller/wiki/Recipe-subprocess
-    #subprocess.call(cmd, shell=True) ### For debugging
+    cmd = 'for %i in ("' + SPLFileName + '") do C:\ProgramData\Fugro\Starfix2018\Fugro.DescribedData2Ascii.exe -n3 %i Time LineName > "' + SPLFilePath + '"'
+    #cmd = 'for %i in ("' + SPLFileName + '") do fbf2asc -n 3 -i %i Time LineName > "' + SPLFilePath + '"'  ## OLD TOOL   
     
+    try:
+        subprocess.call(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, close_fds=True) #https://github.com/pyinstaller/pyinstaller/wiki/Recipe-subprocess
+        #subprocess.call(cmd, shell=True) ### For debugging
+    except subprocess.CalledProcessError:
+        os.remove(SPLFilePath)
+        print('')        
+        sys.exit(stylize(f'The following file is lock ({SPLFileName}).', fg('red')))
+
     # created the variables
     #dfS = pd.read_csv(SPLFilePath, header=None, skipinitialspace=True, usecols=[0,8], nrows=1)
     # from https://stackoverflow.com/questions/3346430/what-is-the-most-efficient-way-to-get-first-and-last-line-of-a-text-file/3346788
-    with open(SPLFilePath, 'rb') as fh:
-        first = next(fh).decode()
-        fh.seek(-1024, os.SEEK_END)
-        last = fh.readlines()[-1].decode()
-    
-    if SPLFormat == 'FBZ':
-        LineName = first.split(',')[1].replace('\n', '').replace(' \r', '').replace(' ', '', 1)      
+    if os.path.getsize(SPLFilePath) == 0:
+        er = SPLFileName
+        lnValue = "EmptySPL"
+        SessionStart = np.datetime64('NaT')
+        SessionEnd = np.datetime64('NaT')
+        return SessionStart, SessionEnd, lnValue, er
+        
     else:
-        first = first.replace(' ', ',', 2).replace(',', ' ', 1)
-        last = last.replace(' ', ',', 2).replace(',', ' ', 1)
-        LineName = first.split(',')[1].replace('\n', '').replace(' \r', '')
+        with open(SPLFilePath, 'rb') as fh:
+            first = next(fh).decode()
+            fh.seek(-1024, os.SEEK_END)
+            last = fh.readlines()[-1].decode()
+
+    LineName = first.split(',')[1].replace(' ', '', 1).replace('"', '').replace('\n', '').replace('\r', '')
+
+    ## OLD TOOL
+    #first = first.replace(' ', ',', 2).replace(',', ' ', 1)
+    #last = last.replace(' ', ',', 2).replace(',', ' ', 1)
+    #LineName = first.split(',')[1].replace('\n', '').replace(' \r', '')
 
     SessionStart = first.split(',')[0]    
     SessionEnd = last.split(',')[0]    
@@ -616,12 +633,14 @@ def SPL2CSV(SPLFileName, Path, SPLFormat):
     os.remove(SPLFilePath)
     
     #checking if linename is empty as is use in all other process
-    if not LineName or LineName == "0.000": # Bug in NG to convert FBZ need to add == 0
+    if not LineName: 
         er = SPLFileName
-        return SessionStart, SessionEnd, "NoLineNameFound", er       
+        lnValue = "NoLineNameFound"
+        return SessionStart, SessionEnd, lnValue, er       
     else:
         er = ""
-        return SessionStart, SessionEnd, LineName, er
+        lnValue = LineName
+        return SessionStart, SessionEnd, lnValue, er
 
 # SPL convertion
 def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder):
@@ -636,7 +655,7 @@ def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder):
     pbar = tqdm(total=len(splList)) if cmd else print(f"Note: Output show file counting every {math.ceil(len(splList)/10)}") #cmd vs GUI 
             
     for index, n in enumerate(splList): 
-        SessionStart, SessionEnd, LineName, er = SPL2CSV(n, outputFolder, SPLFormat)        
+        SessionStart, SessionEnd, LineName, er = SPL2CSV(n, outputFolder)        
         dfSPL = dfSPL.append(pd.Series([SessionStart, SessionEnd, LineName], 
                                 index=dfSPL.columns ), ignore_index=True)
         
@@ -650,12 +669,12 @@ def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder):
                 print(f"Files Process: {index+1}/{len(splList)}")                     
 
     # Format datetime
-    if SPLFormat  == 'FBZ':
-        dfSPL['Session Start'] = pd.to_datetime(dfSPL['Session Start'], format='%Y/%m/%d %H:%M:%S.%f') # format='%d/%m/%Y %H:%M:%S.%f' format='%Y/%m/%d %H:%M:%S.%f' 
-        dfSPL['Session End'] = pd.to_datetime(dfSPL['Session End'], format='%Y/%m/%d %H:%M:%S.%f')
-    else:
-        dfSPL['Session Start'] = pd.to_datetime(dfSPL['Session Start'], format='%d/%m/%Y %H:%M:%S.%f') # format='%d/%m/%Y %H:%M:%S.%f' format='%Y/%m/%d %H:%M:%S.%f' 
-        dfSPL['Session End'] = pd.to_datetime(dfSPL['Session End'], format='%d/%m/%Y %H:%M:%S.%f')
+    dfSPL['Session Start'] = pd.to_datetime(dfSPL['Session Start'], format='%Y/%m/%d %H:%M:%S.%f') # format='%d/%m/%Y %H:%M:%S.%f' format='%Y/%m/%d %H:%M:%S.%f' 
+    dfSPL['Session End'] = pd.to_datetime(dfSPL['Session End'], format='%Y/%m/%d %H:%M:%S.%f')
+
+    ## OLD TOOL
+    #dfSPL['Session Start'] = pd.to_datetime(dfSPL['Session Start'], format='%d/%m/%Y %H:%M:%S.%f') # format='%d/%m/%Y %H:%M:%S.%f' format='%Y/%m/%d %H:%M:%S.%f' 
+    #dfSPL['Session End'] = pd.to_datetime(dfSPL['Session End'], format='%d/%m/%Y %H:%M:%S.%f')
 
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowSPL)) # cmd vs GUI
     
