@@ -56,7 +56,7 @@ if len(sys.argv) >= 2:
     terminal_font_family = 'Courier New', # for tabulate table nice formatation
     #dump_build_config=True,
     #load_build_config="gooey_config.json",
-    default_size=(800, 750),
+    default_size=(930, 770),
     timing_options={        
         'show_time_remaining':True,
         'hide_time_remaining_on_complete':True
@@ -72,7 +72,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.2.0',
+                'version': '0.2.1',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -288,10 +288,13 @@ def process(args, cmd):
     dfFINAL = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "SPL", "MBES", "SBP", "SSS", "MAG", "SUHRS"])
     dfSPL = pd.DataFrame(columns = ["Session Start", "Session End", "SPL LineName"])       
     dfer = pd.DataFrame(columns = ["SPLPath"])
-    dfSummary = pd.DataFrame(columns = ["Sensor", "Processed Files", "Duplicated Files", "Wrong Timestamp (SBP)", "Moved Files"])
+    dfSummary = pd.DataFrame(columns = ["Sensor", "Processed Files", "Duplicated Files", "Wrong Timestamp (SBP)",
+                                        "Moved Files", "Processing Time"])
     dfMissingSPL = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "Sensor Start",
                                            "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"])
     dfDuplSensor = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "Sensor Start",
+                                           "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"])
+    dfsgy = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "Sensor Start",
                                            "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"])
     dfSkip = pd.DataFrame(columns = ["FilePath", "File Size [MB]"])
     
@@ -376,7 +379,6 @@ def process(args, cmd):
     else:
         suhrsListFile = []
     
-    
     #### Not very efficient, will need to improve later   
     print(f'Start Listing for {splFolder}')
     fbzListFile = glob.glob(splFolder + "\\**\\" + splPosition + ".fbz", recursive=True)
@@ -395,9 +397,9 @@ def process(args, cmd):
     ##########################################################
     #                     Reading SPL                        #
     ##########################################################    
-    dfSPL, dfer = splfc(fbfListFile, 'FBF', dfSPL, dfer, outputFolder, cmd)
-    dfSPL, dfer = splfc(fbzListFile, 'FBZ', dfSPL, dfer, outputFolder, cmd)
-    dfSPL, dfer = splfc(posListFile, 'POS', dfSPL, dfer, outputFolder, cmd)
+    dfSPL, dfer, dfSummary = splfc(fbfListFile, 'FBF', dfSPL, dfer, dfSummary, outputFolder, cmd)
+    dfSPL, dfer, dfSummary = splfc(fbzListFile, 'FBZ', dfSPL, dfer, dfSummary, outputFolder, cmd)
+    dfSPL, dfer, dfSummary = splfc(posListFile, 'POS', dfSPL, dfer, dfSummary, outputFolder, cmd)
     
     # Copy the needed info from dfSPl to the dfFINAL
     dfFINAL['Session Start'] = dfSPL['Session Start']  
@@ -410,37 +412,37 @@ def process(args, cmd):
     ##########################################################
     # MBES
     if args.allFile is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('File', allListFile, 'MBES', '.all', cmd, args.rename, outputFolder,
-                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('File', allListFile, 'MBES', '.all', cmd, args.rename, outputFolder,
+                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
     elif args.allFolder is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('Folder', allListFile, 'MBES', '.all', cmd, args.rename, outputFolder,
-                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('Folder', allListFile, 'MBES', '.all', cmd, args.rename, outputFolder,
+                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
     # XTF
     if args.xtfFile is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('File', xtfListFile, 'SSS', '.xtf', cmd, args.rename, outputFolder,
-                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('File', xtfListFile, 'SSS', '.xtf', cmd, args.rename, outputFolder,
+                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
     elif args.xtfFolder is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('Folder', xtfListFile, 'SSS', '.xtf', cmd, args.rename, outputFolder,
-                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('Folder', xtfListFile, 'SSS', '.xtf', cmd, args.rename, outputFolder,
+                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
     # SBP
     if args.sgySBPFile is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('File', sbpListFile, 'SBP', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
-                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('File', sbpListFile, 'SBP', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
+                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
     elif args.sgySBPFolder is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('Folder', sbpListFile, 'SBP', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
-                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('Folder', sbpListFile, 'SBP', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
+                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
     # MAG
     if args.csvMAGFile is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('File', magListFile, 'MAG', '.csv', cmd, args.rename, outputFolder,
-                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('File', magListFile, 'MAG', '.csv', cmd, args.rename, outputFolder,
+                                                                            dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
         if move == 'yes':
             lsFile = outputFolder + "\\" + vessel + "_MAG_Full_Log.csv"
             VesselFolder = os.path.join(csvMAGFolder, vessel)
             WrongFolder = os.path.join(csvMAGFolder, 'WRONG')
             dfSummary = mvSensorFile(lsFile, VesselFolder, WrongFolder, cmd, 'MAG', dfSummary) 
     elif args.csvMAGFolder is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('Folder', magListFile, 'MAG', '.csv', cmd, args.rename, outputFolder,
-                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('Folder', magListFile, 'MAG', '.csv', cmd, args.rename, outputFolder,
+                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
         if move == 'yes':
             lsFile = outputFolder + "\\" + vessel + "_MAG_Full_Log.csv"
             VesselFolder = os.path.join(csvMAGFolder, vessel)
@@ -448,16 +450,16 @@ def process(args, cmd):
             dfSummary = mvSensorFile(lsFile, VesselFolder, WrongFolder, cmd, 'MAG', dfSummary) 
     # SUHRS
     if args.sgySUHRSFile is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('File', suhrsListFile, 'SUHRS', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
-                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('File', suhrsListFile, 'SUHRS', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
+                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
         if move == 'yes':
             lsFile = outputFolder + "\\" + vessel + "_SUHRS_Full_Log.csv"
             VesselFolder = os.path.join(sgySUHRSFolder, vessel)
             WrongFolder = os.path.join(sgySUHRSFolder, 'WRONG')
             dfSummary = mvSensorFile(lsFile, VesselFolder, WrongFolder, cmd, 'SUHRS', dfSummary)         
     elif args.sgySUHRSFolder is not None:
-        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip = sensorsfc('Folder', suhrsListFile, 'SUHRS', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
-                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel)
+        dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy = sensorsfc('Folder', suhrsListFile, 'SUHRS', '.sgy/*.seg/*.segy', cmd, args.rename, outputFolder,
+                                                                   dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel)
         if move == 'yes':
             lsFile = outputFolder + "\\" + vessel + "_SUHRS_Full_Log.csv"
             VesselFolder = os.path.join(sgySUHRSFolder, vessel)
@@ -483,6 +485,9 @@ def process(args, cmd):
     dfMissingSPL = dfMissingSPL[dfMissingSPL['Session Start'].isnull()] # df Missing SPL
     dfMissingSPL = dfMissingSPL.drop(columns=["Session Start", "Session End", "Vessel Name", "SPL LineName", "Sensor New LineName"])
     dfMissingSPL = dfMissingSPL[["Sensor Start", "Sensor FileName", "FilePath"]]
+    
+    dfsgy = dfsgy.drop(columns=["Session Start", "Session End", "Vessel Name", "SPL LineName", "Sensor New LineName"])
+    dfsgy = dfsgy[["Sensor Start", "Sensor FileName", "FilePath"]]
     
     dfSPLProblem = dfFINAL[dfFINAL['SPL'].isin(['NoLineNameFound', 'EmptySPL', 'SPLtoSmall'])]
     dfSPLProblem = dfSPLProblem.drop_duplicates(subset='Session Start', keep='first')
@@ -523,11 +528,13 @@ def process(args, cmd):
     dfDuplSensor.sort_values('Sensor Start').to_excel(writer, sheet_name='Duplicated_Sensor_Data')    
     dfSPLProblem.sort_values('Session Start').to_excel(writer, sheet_name='SPL_Problem')
     dfSkip.to_excel(writer, sheet_name='Skip_SSS_Files')
+    dfsgy.to_excel(writer, sheet_name='Wrong_SBP_Time')
     
     workbook  = writer.book        
     worksheetS = writer.sheets['Summary_Process_Log']
     worksheetS.hide_gridlines(2)
     worksheetFull = writer.sheets['Full_List']
+    worksheetMissingSPL = writer.sheets['Missing_SPL']
     worksheetMBES = writer.sheets['MBES_NotMatching']
     worksheetSSS = writer.sheets['SSS_NotMatching']
     worksheetSBP = writer.sheets['SBP_NotMatching']
@@ -535,12 +542,13 @@ def process(args, cmd):
     worksheetSUHRS = writer.sheets['SUHRS_NotMatching']
     worksheetDuplSPL = writer.sheets['Duplicated_SPL_Name']
     worksheetDuplSensor = writer.sheets['Duplicated_Sensor_Data']
-    worksheetMissingSPL = writer.sheets['Missing_SPL']
-    worksheetSkip = writer.sheets['SPL_Problem']
+    worksheetSPLProblem = writer.sheets['SPL_Problem']
+    worksheetSkip = writer.sheets['Skip_SSS_Files']
+    worksheetsgy = writer.sheets['Wrong_SBP_Time']
     
-    ListDF = [dfFINAL, dfMBES, dfSSS, dfSBP, dfMAG, dfSUHRS, dfDuplSPL, dfDuplSensor, dfMissingSPL, dfSPLProblem, dfSkip]
+    ListDF = [dfFINAL, dfMissingSPL, dfMBES, dfSSS, dfSBP, dfMAG, dfSUHRS, dfDuplSPL, dfDuplSensor, dfSPLProblem, dfSkip, dfsgy]
     ListWS = [worksheetFull, worksheetMBES, worksheetSSS, worksheetSBP, worksheetMAG, worksheetSUHRS, 
-                worksheetDuplSPL, worksheetDuplSensor, worksheetMissingSPL, worksheetSkip]
+                worksheetDuplSPL, worksheetDuplSensor, worksheetMissingSPL, worksheetSPLProblem, worksheetSkip, worksheetsgy]
     ListFC = [worksheetFull, worksheetMBES, worksheetSSS, worksheetSBP, worksheetMAG, worksheetSUHRS]
     
     #### Set format       
@@ -559,42 +567,7 @@ def process(args, cmd):
                                  'font_name': 'Segoe UI',
                                  'font_size': 10,
                                  'valign': 'vcenter',})
-  
-    for i, width in enumerate(get_col_widths(dfSummary)):
-        worksheetS.set_column(i, i, width)
-        
-    text1 = 'A total of ' + str(Tsensors) + ' sensors files were processed and ' + str(Tfbf_fbz) + ' SPL Sessions.'
-    text2 = 'A total of ' + str(len(dfer)) + '/' + str(Tfbf_fbz) + ' Session SPL has/have no Linename information.' 
-    textS = [bold, 'Summary_Process_Log', normal, ': Summary log of the processing']
-    textFull = [bold, 'Full_List', normal, ': Full log list of all sensors without duplicated and skip files']
-    textMissingSPL = [bold, 'Missing_SPL', normal, ': List of all missing SPL file that do have sensors recorded']
-    textMBES = [bold, 'MBES_NotMatching', normal, ': MBES log list of all files that do not match the SPL name; without duplicated and skip files']
-    textSSS = [bold, 'SSS_NotMatching', normal, ': SSS log list of all files that do not match the SPL name; without duplicated and skip files']
-    textSBP = [bold, 'SBP_NotMatching', normal, ': SBP log list of all files that do not match the SPL name; without duplicated and skip files']
-    textMAG = [bold, 'MAG_NotMatching', normal, ': MAG log list of all files that do not match the SPL name; without duplicated and skip files']
-    textSUHRS = [bold, 'SUHRS_NotMatching', normal, ': SUHRS log list of all files that do not match the SPL name; without duplicated and skip files']
-    textDuplSPL = [bold, 'Duplicated_SPL_Name', normal, ': List of all duplicated SPL name']
-    textDuplSensor = [bold, 'Duplicated_Sensor_Data', normal, ': List of all duplicated sensors files; Based on the start time']
-    textSkip = [bold, 'SPL_Problem', normal, ': List of all SPL session without a line name in the columns LineName or are empty ou too small']
     
-    ListT = [textS, textMissingSPL, textFull, textMBES, textSSS, textSBP, textMAG, textSUHRS, textDuplSPL, textDuplSensor, textSkip]
-    ListHL = ['internal:Summary_Process_Log!A1', 'internal:Full_List!A1', 'internal:Missing_SPL!A1', 'internal:MBES_NotMatching!A1', 
-              'internal:SSS_NotMatching!A1', 'internal:SBP_NotMatching!A1', 'internal:MAG_NotMatching!A1','internal:SUHRS_NotMatching!A1',
-              'internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 'internal:SPL_Problem!A1']
-                
-    worksheetS.write(0, 0, text1, bold)
-    worksheetS.write(1, 0, text2, bold)
-    
-    icount = 0
-    for e, l in zip(ListT,ListHL):
-        worksheetS.write_rich_string(dfSummary.shape[0] + 7 + icount, 1, *e)
-        worksheetS.write_url(dfSummary.shape[0] + 7 + icount, 0, l, hlink, string='Link')
-        icount += 1
-    
-    for ws in ListWS:
-        ws.write_url(0, 0, 'internal:Summary_Process_Log!A1', hlink, string='Summary')
-    
-    # Others Sheet
     cell_format = workbook.add_format({'text_wrap': True,
                                        'font_name': 'Segoe UI',
                                        'font_size': 10,
@@ -602,6 +575,15 @@ def process(args, cmd):
                                        'align': 'left',
                                        'border_color': '#000000',
                                        'border': 1})
+    
+    cell_time = workbook.add_format({'num_format': 'hh:mm:ss.000',
+                                    'text_wrap': False,
+                                    'font_name': 'Segoe UI',
+                                    'font_size': 10,
+                                    'valign': 'vcenter',
+                                    'align': 'left',
+                                    'border_color': '#000000',
+                                    'border': 1})
     
     header_format = workbook.add_format({'bold': True,
                                          'font_name': 'Segoe UI',
@@ -613,6 +595,53 @@ def process(args, cmd):
                                          'font_color': '#FFFFFF',
                                          'border_color': '#FFFFFF',
                                          'border': 1})
+    
+  
+    for i, width in enumerate(get_col_widths(dfSummary)):
+        worksheetS.set_column(i, i, width)
+        
+    text1 = 'A total of ' + str(Tsensors) + ' sensors files were processed and ' + str(Tfbf_fbz) + ' SPL Sessions.'
+    text2 = 'A total of ' + str(len(dfer)) + '/' + str(Tfbf_fbz) + ' Session SPL has/have no Linename information.' 
+    textS = [bold, 'Summary_Process_Log', normal, ': Summary log of the processing']
+    textFull = [bold, 'Full_List', normal, ': Full log list of all sensors without duplicated and skip files']
+    textMissingSPL = [bold, 'Missing_SPL', normal, ': List of all sennsors that have missing SPL SPL file that']
+    textMBES = [bold, 'MBES_NotMatching', normal, ': MBES log list of all files that do not match the SPL name; without duplicated and skip files']
+    textSSS = [bold, 'SSS_NotMatching', normal, ': SSS log list of all files that do not match the SPL name; without duplicated and skip files']
+    textSBP = [bold, 'SBP_NotMatching', normal, ': SBP log list of all files that do not match the SPL name; without duplicated and skip files']
+    textMAG = [bold, 'MAG_NotMatching', normal, ': MAG log list of all files that do not match the SPL name; without duplicated and skip files']
+    textSUHRS = [bold, 'SUHRS_NotMatching', normal, ': SUHRS log list of all files that do not match the SPL name; without duplicated and skip files']
+    textDuplSPL = [bold, 'Duplicated_SPL_Name', normal, ': List of all duplicated SPL name']
+    textDuplSensor = [bold, 'Duplicated_Sensor_Data', normal, ': List of all duplicated sensors files; Based on the start time']
+    textSPLProblem = [bold, 'SPL_Problem', normal, ': List of all SPL session without a line name in the columns LineName, are empty or too small']
+    textSkip = [bold, 'Skip_SSS_Files', normal, ': List of all SSS data that have a file size less than 1 MB']
+    textsgy = [bold, 'Wrong_SBP_Time', normal, ': List of all SBP data that have a wrong timestamp']
+    
+    ListT = [textS, textFull, textMissingSPL, textMBES, textSSS, textSBP, textMAG, textSUHRS, textDuplSPL, textDuplSensor, 
+             textSPLProblem, textSkip, textsgy]
+    ListHL = ['internal:Summary_Process_Log!A1', 'internal:Full_List!A1', 'internal:Missing_SPL!A1', 'internal:MBES_NotMatching!A1', 
+              'internal:SSS_NotMatching!A1', 'internal:SBP_NotMatching!A1', 'internal:MAG_NotMatching!A1',
+              'internal:SUHRS_NotMatching!A1','internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 
+              'internal:SPL_Problem!A1', 'internal:Skip_SSS_Files!A1', 'internal:Wrong_SBP_Time!A1']
+                
+    worksheetS.write(0, 0, text1, bold)
+    worksheetS.write(1, 0, text2, bold)
+    
+    icount = 0
+    for e, l in zip(ListT,ListHL):
+        worksheetS.write_rich_string(dfSummary.shape[0] + 7 + icount, 1, *e)
+        worksheetS.write_url(dfSummary.shape[0] + 7 + icount, 0, l, hlink, string='Link')
+        icount += 1
+    
+    range_table = "B7:G{}".format(dfSummary.shape[0]+6)
+    range_time = "G7:G{}".format(dfSummary.shape[0]+6)
+    worksheetS.conditional_format(range_time, {'type': 'no_blanks',
+                                               'format': cell_time})
+    worksheetS.conditional_format(range_table, {'type': 'no_blanks',
+                                                'format': cell_format})
+
+    # Others Sheet
+    for ws in ListWS:
+        ws.write_url(0, 0, 'internal:Summary_Process_Log!A1', hlink, string='Summary')
     
     for df, ws in zip(ListDF, ListWS):
         ws.autofilter(0, 0, df.shape[0], df.shape[1])
@@ -626,34 +655,48 @@ def process(args, cmd):
     #        ws.set_column(i, i, width, cell_format)
 
     # Define our range for the color formatting
-    color_range1 = "E2:E{}".format(len(dfFINAL.index)+1)
-    color_range2 = "F2:J{}".format(len(dfFINAL.index)+1)
+    color_range1 = "E2:E{}".format(dfFINAL.shape[0]+1)
+    color_range2 = "F2:J{}".format(dfFINAL.shape[0]+1)
 
-    # Add a format. Light red fill with dark red text.
-    format1 = workbook.add_format({'bg_color': '#FFC7CE',
+    # Add a format.
+    fWRONG = workbook.add_format({'bg_color': '#FFC7CE',
                                 'font_color': '#9C0006'})
-    format2 = workbook.add_format({'bg_color': '#C6EFCE',
+    fOK = workbook.add_format({'bg_color': '#C6EFCE',
                                 'font_color': '#006100'})
-    format3 = workbook.add_format({'bg_color': '#FFFFFF',
+    fBLANK = workbook.add_format({'bg_color': '#FFFFFF',
                                 'font_color': '#000000'})
-    format4 = workbook.add_format({'bg_color': '#2385FC',
+    fDUPL = workbook.add_format({'bg_color': '#2385FC',
+                                'font_color': '#FFFFFF'})
+    fWSPL = workbook.add_format({'bg_color': '#C90119',
                                 'font_color': '#FFFFFF'})
     
-    # Highlight the values
+    # Highlight the values (first is overwrite the others below.....)
     for i in ListFC:
+        i.conditional_format(color_range1, {'type': 'text',
+                                            'criteria': 'containing',
+                                            'value':    'SPLtoSmall',
+                                            'format': fWSPL})
+        i.conditional_format(color_range1, {'type': 'text',
+                                            'criteria': 'containing',
+                                            'value':    'NoLineNameFound',
+                                            'format': fWSPL})
+        i.conditional_format(color_range1, {'type': 'text',
+                                            'criteria': 'containing',
+                                            'value':    'EmptySPL',
+                                            'format': fWSPL})
         i.conditional_format(color_range1, {'type': 'duplicate',
-                                            'format': format4})
+                                            'format': fDUPL})
         i.conditional_format(color_range2, {'type': 'blanks',
-                                            'format': format3})
+                                            'format': fBLANK})
         i.conditional_format(color_range2, {'type': 'text',
                                             'criteria': 'containing',
                                             'value':    '[WRONG]',
                                             #'criteria': '=NOT(ISNUMBER(SEARCH($E2,F2)))',
-                                            'format': format1})
+                                            'format': fWRONG})
         i.conditional_format(color_range2, {'type': 'text',
                                             'criteria': 'containing',
                                             'value':    '[OK]',
-                                            'format': format2}) 
+                                            'format': fOK}) 
 
     text3 = 'Process Duration: ' + str((datetime.datetime.now() - now))
     worksheetS.write(3, 0, text3, bold)
@@ -748,7 +791,7 @@ def SPL2CSV(SPLFileName, Path):
         return SessionStart, SessionEnd, lnValue, er
 
 # SPL convertion
-def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder, cmd):
+def splfc(splList, SPLFormat, dfSPL, dfer, dfSummary, outputFolder, cmd):
     """
     Reading SPL Files (FBF and FBZ)
     """
@@ -769,17 +812,23 @@ def splfc(splList, SPLFormat, dfSPL, dfer, outputFolder, cmd):
     # Format datetime
     dfSPL['Session Start'] = pd.to_datetime(dfSPL['Session Start'], format='%Y/%m/%d %H:%M:%S.%f') # format='%d/%m/%Y %H:%M:%S.%f' format='%Y/%m/%d %H:%M:%S.%f' 
     dfSPL['Session End'] = pd.to_datetime(dfSPL['Session End'], format='%Y/%m/%d %H:%M:%S.%f')
+    
+    dfCount = dfSPL[dfSPL.duplicated(subset='Session Start', keep=False)]
 
     ## OLD TOOL
     #dfSPL['Session Start'] = pd.to_datetime(dfSPL['Session Start'], format='%d/%m/%Y %H:%M:%S.%f') # format='%d/%m/%Y %H:%M:%S.%f' format='%Y/%m/%d %H:%M:%S.%f' 
     #dfSPL['Session End'] = pd.to_datetime(dfSPL['Session End'], format='%d/%m/%Y %H:%M:%S.%f')
+    
+    # Add the Sumary Info in a df
+    dfSummary = dfSummary.append(pd.Series([SPLFormat, len(splList), int(len(dfCount.index)/2), 'nan', 'nan', datetime.datetime.now() - nowSPL], 
+                index=dfSummary.columns ), ignore_index=True) 
 
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowSPL)) # cmd vs GUI
     
-    return dfSPL, dfer
+    return dfSPL, dfer, dfSummary
   
 # Sensors convertion and logs creation
-def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, vessel):
+def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel):
     """
     Main function to create and rename the sensors files.    
     """
@@ -795,7 +844,8 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL,
     dftmp = pd.DataFrame(columns = ["Session Start", "Session End", "Vessel Name", "Sensor Start",
                                         "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"])
 
-    nowSensor = datetime.datetime.now()  # record time of the subprocess     
+    nowSensor = datetime.datetime.now()  # record time of the subprocess
+    nowMain = datetime.datetime.now()  # record time of the main process       
     pbar = tqdm(total=len(lsFile)) if cmd else print(f"Note: Output show file counting every {math.ceil(len(lsFile)/10)}") # cmd vs GUI
           
     # Reading the sensors files 
@@ -916,8 +966,8 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL,
             print("")
             print(f"A total of {len(dfsgy)} *{ext} ({ssFormat}) has/have wrong Start Time information.")
             print(f"Please check the {vessel}_{ssFormat}_WrongStartTime_log.csv for more information.")
-            dfsgy.to_csv(outputFolder + "\\" + vessel + "_" + ssFormat + "_WrongStartTime_log.csv", index=True,
-                         columns=["Sensor Start", "Vessel Name", "FilePath", "Sensor FileName"])  
+            #dfsgy.to_csv(outputFolder + "\\" + vessel + "_" + ssFormat + "_WrongStartTime_log.csv", index=True,
+            #            columns=["Sensor Start", "Vessel Name", "FilePath", "Sensor FileName"])  
        
     # Droping duplicated and creating a log.
     dfCountDupl = dftmp[dftmp.duplicated(subset='Sensor Start', keep=False)].sort_values('Sensor Start')
@@ -961,10 +1011,10 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, rename, outputFolder, dfSPL,
     #print(dfFINAL.to_markdown(tablefmt="github", index=False))
     
     # Add the Sumary Info in a df
-    dfSummary = dfSummary.append(pd.Series([ssFormat, len(lsFile), int(len(dfCountDupl.index)/2), len(dfsgy) if ssFormat == 'SBP' else np.nan, rcount], 
-                index=dfSummary.columns ), ignore_index=True) 
+    dfSummary = dfSummary.append(pd.Series([ssFormat, len(lsFile), int(len(dfCountDupl.index)/2), len(dfsgy) if ssFormat == 'SBP' else 'nan', 'nan', datetime.datetime.now() - nowMain], 
+                index=dfSummary.columns), ignore_index=True) 
     
-    return dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip
+    return dfFINAL, dfSummary, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy
 
 # Move MAG and SUHRS function
 def mvSensorFile (lsFile, VesselFolder, WrongFolder, cmd, ssFormat, dfSummary):
@@ -1008,6 +1058,7 @@ def mvSensorFile (lsFile, VesselFolder, WrongFolder, cmd, ssFormat, dfSummary):
     #df.at[index, col] = val https://stackoverflow.com/questions/13842088/set-value-for-particular-cell-in-pandas-dataframe-using-index
     dfSummary.set_index('Sensor', inplace=True)
     dfSummary.at[ssFormat, 'Moved Files'] = count
+    dfSummary.at[ssFormat, 'Processing Time'] = dfSummary.loc[ssFormat].at['Processing Time'] + (datetime.datetime.now() - nowmove)
     dfSummary = dfSummary.reset_index() # Reset index if not the column Session Start will be missing              
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowmove)) # cmd vs GUI
     
