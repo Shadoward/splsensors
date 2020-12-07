@@ -73,7 +73,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.3.2',
+                'version': '0.3.3',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -281,7 +281,7 @@ def process(args, cmd):
     
     # Defined Global Dataframe
     col = ["Session Start", "Difference Start [s]", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start",
-            "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"]
+            "FilePath", "Sensor Type", "Sensor FileName", "SPL LineName", "Sensor New LineName"]
     dfFINAL = pd.DataFrame(columns = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", 
                                       "SPL", "MBES", "SBP", "SSS", "MAG", "SUHRS"])
     dfSPL = pd.DataFrame(columns = ["Session Start", "Session End", "SPL LineName", "Session MaxGap", "Session Name"])       
@@ -655,8 +655,8 @@ def process(args, cmd):
                 ws.set_column(0, 0, 11, cell_format) # ID
                 ws.set_column(df.columns.get_loc('Sensor Start')+1, df.columns.get_loc('Session End')+1, 24, cell_format) # DateTime
                 ws.set_column(df.columns.get_loc('Session Name')+1, df.columns.get_loc('Session Name')+1, 20, session_format) # Session Name
-                ws.set_column(df.columns.get_loc('Session MaxGap')+1, df.columns.get_loc('Vessel Name')+1, 20, cell_format) # Session Info
-                ws.set_column(df.columns.get_loc('FilePath')+1, df.columns.get_loc('FilePath')+1, 150, cell_format)
+                ws.set_column(df.columns.get_loc('Session MaxGap')+1, df.columns.get_loc('Sensor Type')+1, 20, cell_format) # Session Info
+                #ws.set_column(df.columns.get_loc('FilePath')+1, df.columns.get_loc('FilePath')+1, 150, cell_format)
                 ws.set_column(df.columns.get_loc('Sensor FileName')+1, df.columns.get_loc('Sensor FileName')+1, 50, cell_format)
                 ws.set_column(df.columns.get_loc('SPL LineName')+1, df.columns.get_loc('SPL LineName')+1, 20, cell_format)
                 ws.set_column(df.columns.get_loc('SPL LineName')+2, df.shape[1], 150, cell_format) # SPL Name
@@ -913,7 +913,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     # Define Dataframe
     # Need to be declare fully in case of manipulated df (DO NOT CHANGE)
     col = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start", "Difference Start [s]",
-           "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"]
+           "Sensor Type", "Sensor FileName", "SPL LineName", "FilePath", "Sensor New LineName"]
     dfSensors = pd.DataFrame(columns = col)
     dftmp = pd.DataFrame(columns = col)
 
@@ -922,6 +922,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     pbar = tqdm(total=len(lsFile)) if cmd else print(f"Note: Output show file counting every {math.ceil(len(lsFile)/10)}") # cmd vs GUI
           
     # Reading the sensors files 
+    SType =  ssFormat
     if firstrun == 'Folder':    
         for index, f in enumerate(lsFile):
             fName = os.path.splitext(os.path.basename(f))[0]        
@@ -963,7 +964,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             
             progressBar(cmd, pbar, index, lsFile)
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", f, fName, "", ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
                                          ignore_index=True) 
         
     if firstrun == 'File':
@@ -973,7 +974,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             fStart = row['Sensor Start']             
             progressBar(cmd, pbar, index, lsFile)                   
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", f, fName, "", ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
                                          ignore_index=True)        
                           
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowSensor)) # cmd vs GUI
@@ -993,11 +994,12 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
         splName = row['SPL LineName']
         SessionGap = row['Session MaxGap']
         SessionName = row['Session Name']
+        #SensorType =  row['Sensor Type']
         dffilter = dfSensors[dfSensors['Sensor Start'].between(splStart-datetime.timedelta(seconds=int(buffer)), splEnd)]   
         for index, el in dffilter.iterrows():
             #print(el)
             SensorFile =  el['FilePath']
-            SensorStart = el['Sensor Start']            
+            SensorStart = el['Sensor Start']           
             SensorDiff = (splStart - SensorStart) / np.timedelta64(1, 's')           
             FolderName = os.path.split(SensorFile)[0]
             SensorName = os.path.splitext(os.path.basename(SensorFile))[0]
@@ -1007,8 +1009,8 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
                 SNameCond = SensorName + ' [WRONG]'
             SensorExt =  os.path.splitext(os.path.basename(SensorFile))[1]                              
             SensorNewName = FolderName + '\\' + SensorName + '_' + splName + SensorExt
-            dftmp = dftmp.append(pd.Series([splStart, splEnd, SessionName, SessionGap, vessel, SensorStart, SensorDiff, SensorFile, SNameCond, splName, SensorNewName], 
-                                index=dftmp.columns), ignore_index=True)
+            dftmp = dftmp.append(pd.Series([splStart, splEnd, SessionName, SessionGap, vessel, SensorStart, SensorDiff, SType, 
+                                            SNameCond, splName, SensorFile, SensorNewName], index=dftmp.columns), ignore_index=True)
  
     print("Subprocess Duration: ", (datetime.datetime.now() - nowListing)) # cmd vs GUI
     
@@ -1064,7 +1066,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     
     # Creating the FINAL df
     dfMissingSPL = dfMissingSPL.append(dfSensors)
-    dfMissingSPL['Sensor Type'] = ssFormat
+    #dfMissingSPL['Sensor Type'] = ssFormat
 
     dfFINAL.set_index('Session Start', inplace=True)
     dfSensors = dfSensors.dropna(subset=['Session Start']) # Drop Missing SPL
