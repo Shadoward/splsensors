@@ -27,7 +27,7 @@ extras_require = {
 
 setup(
     name='splsensors',
-    version='0.3.1',
+    version='0.3.2',
     description='Linename comparison and rename tool between SPL and sensors',
     long_description=readme,
     author='Patrice Ponchant',

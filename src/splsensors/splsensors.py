@@ -73,7 +73,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.3.1',
+                'version': '0.3.2',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -280,7 +280,7 @@ def process(args, cmd):
     move = args.move
     
     # Defined Global Dataframe
-    col = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start",
+    col = ["Session Start", "Difference Start [s]", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start",
             "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"]
     dfFINAL = pd.DataFrame(columns = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", 
                                       "SPL", "MBES", "SBP", "SSS", "MAG", "SUHRS"])
@@ -484,8 +484,9 @@ def process(args, cmd):
     dtFormat = ['Sensor Start', 'Session Start', 'Session End']
     for dt in dtFormat:
         dfALL[dt] = pd.to_datetime(dfALL[dt])
-    dfALL['Difference Start [s]'] = dfALL['Session Start'] - dfALL['Sensor Start']
-    dfALL['Difference Start [s]'] = dfALL['Difference Start [s]'] / np.timedelta64(1, 's')
+    
+    #dfALL['Difference Start [s]'] = dfALL['Session Start'] - dfALL['Sensor Start']
+    #dfALL['Difference Start [s]'] = dfALL['Difference Start [s]'] / np.timedelta64(1, 's')
     dfALL = movecol(dfALL, cols_to_move=['Difference Start [s]'], ref_col='Sensor Start', place='After')
     
     coldrop =["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "SPL LineName", "Sensor New LineName"]
@@ -911,7 +912,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     
     # Define Dataframe
     # Need to be declare fully in case of manipulated df (DO NOT CHANGE)
-    col = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start",
+    col = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start", "Difference Start [s]",
            "FilePath", "Sensor FileName", "SPL LineName", "Sensor New LineName"]
     dfSensors = pd.DataFrame(columns = col)
     dftmp = pd.DataFrame(columns = col)
@@ -962,7 +963,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             
             progressBar(cmd, pbar, index, lsFile)
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["","", "", "", "", fStart, f, fName, "", ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", f, fName, "", ""], index=dfSensors.columns), 
                                          ignore_index=True) 
         
     if firstrun == 'File':
@@ -972,7 +973,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             fStart = row['Sensor Start']             
             progressBar(cmd, pbar, index, lsFile)                   
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["","", "", "", "", fStart, f, fName, "", ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", f, fName, "", ""], index=dfSensors.columns), 
                                          ignore_index=True)        
                           
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowSensor)) # cmd vs GUI
@@ -986,8 +987,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     
     # Logs and renaming the Sensors files
     # TODO change the order to handle buffer. First occurence
-    rcount = 0    
-    for index, row in dfSPL.iterrows():                  
+    for index, row in dfSPL.iterrows():                          
         splStart = row['Session Start']
         splEnd = row['Session End']
         splName = row['SPL LineName']
@@ -997,7 +997,8 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
         for index, el in dffilter.iterrows():
             #print(el)
             SensorFile =  el['FilePath']
-            SensorStart = el['Sensor Start']
+            SensorStart = el['Sensor Start']            
+            SensorDiff = (splStart - SensorStart) / np.timedelta64(1, 's')           
             FolderName = os.path.split(SensorFile)[0]
             SensorName = os.path.splitext(os.path.basename(SensorFile))[0]
             if splName in SensorName: # use for conditional formating and because I group linename under the same Session some sensor can contain or not the SPL linename
@@ -1006,7 +1007,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
                 SNameCond = SensorName + ' [WRONG]'
             SensorExt =  os.path.splitext(os.path.basename(SensorFile))[1]                              
             SensorNewName = FolderName + '\\' + SensorName + '_' + splName + SensorExt
-            dftmp = dftmp.append(pd.Series([splStart, splEnd, SessionName, SessionGap, vessel, SensorStart, SensorFile, SNameCond, splName, SensorNewName], 
+            dftmp = dftmp.append(pd.Series([splStart, splEnd, SessionName, SessionGap, vessel, SensorStart, SensorDiff, SensorFile, SNameCond, splName, SensorNewName], 
                                 index=dftmp.columns), ignore_index=True)
  
     print("Subprocess Duration: ", (datetime.datetime.now() - nowListing)) # cmd vs GUI
@@ -1037,7 +1038,12 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
         print(f"A total of {int(len(dfCountDupl.index)/2)} *{ext} file(s) was/were duplicated.")
         print(f"Please check the Duplicated_Sensor_Data sheet in the _{vessel}_FINAL_Log.xlsx for more information.")
         #dfDuplSensor.to_csv(outputFolder + "\\" + vessel + "_" + ssFormat + "_Duplicate_Log.csv", index=True)
+        # Because of the buffer we need to classify duplicated snsors start and difference time to remove the sensor that was
+        # classify wrongly. Normally last sensors split will be add to the correct session and the session after with big buffer
+        dftmp = dftmp.sort_values('Difference Start [s]')
+        #dftmp.to_csv(outputFolder + "\\" + vessel + "_" + ssFormat + "_dftmp_before_Log.csv", index=False)
         dftmp = dftmp.drop_duplicates(subset='Sensor Start', keep='first')
+        #dftmp.to_csv(outputFolder + "\\" + vessel + "_" + ssFormat + "_dftmp_after_Log.csv", index=False)
         dfSensors = dfSensors.drop_duplicates(subset='Sensor Start', keep='first')
     
     # Updated the final dataframe to export the log
