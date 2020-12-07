@@ -402,7 +402,7 @@ def process(args, cmd):
     dfFINAL['SPL'] = dfSPL['SPL LineName']
     dfFINAL['Session MaxGap'] = dfSPL['Session MaxGap']
     dfFINAL['Session Name'] = dfSPL['Session Name']
-    dfFINAL['Vessel Name'] = dfSPL['Vessel Name']
+    dfFINAL['Vessel Name'] = vessel
     
     ##########################################################
     #                    Reading Sensors                     #
@@ -947,6 +947,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
                     dfSkip = dfSkip.append(pd.Series([f, file_size], index=dfSkip.columns ), ignore_index=True)
                 
             # SBP/SUHRS *.sgy Files https://docs.obspy.org/master/packages/obspy.io.segy.html
+            # TODO not very fast. See if other package can be faster to just read first trace starttime
             if ssFormat in ['SBP', 'SUHRS']:
                 r = read(f, headonly=False)
                 rStart = str(r[0].stats.starttime) # 2020-05-22T17:26:47.000000Z
