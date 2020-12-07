@@ -73,7 +73,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.3.0',
+                'version': '0.3.1',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -402,6 +402,7 @@ def process(args, cmd):
     dfFINAL['SPL'] = dfSPL['SPL LineName']
     dfFINAL['Session MaxGap'] = dfSPL['Session MaxGap']
     dfFINAL['Session Name'] = dfSPL['Session Name']
+    dfFINAL['Vessel Name'] = dfSPL['Vessel Name']
     
     ##########################################################
     #                    Reading Sensors                     #
