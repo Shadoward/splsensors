@@ -73,7 +73,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.3.3',
+                'version': '0.3.4',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -314,7 +314,8 @@ def process(args, cmd):
     # Check if file is open before continue
     for fi in glob.glob(outputFolder + "\\*"):
         try:
-            fp = open(fi, "r+")
+            #fp = open(fi, "r+")
+            os.remove(fi)
         except IOError:
             print('')
             sys.exit(stylize(f'The following file is lock ({fi}).\nPlease close the files in the "{outputFolder}" folder', fg('red')))      
@@ -1095,7 +1096,7 @@ def mvSensorFile (lsFile, VesselFolder, WrongFolder, cmd, ssFormat, dfSummary):
     print('##################################################')
     nowmove = datetime.datetime.now() # record time of the subprocess
            
-    dfmove = pd.read_csv(lsFile, usecols=[3,4,5])
+    dfmove = pd.read_csv(lsFile, usecols=['Vessel Name','Sensor FileName', 'FilePath'])
     dfmove = dfmove[~dfmove['Vessel Name'].isnull()]
     
     dfOK = dfmove[dfmove.apply(lambda row: '[OK]' in str(row['Sensor FileName']), axis=1)]
