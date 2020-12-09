@@ -73,7 +73,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
                 'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.3.4',
+                'version': '0.3.5',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -341,35 +341,35 @@ def process(args, cmd):
     print(f'The following folders(s) will be excluded: {exclude} \n') if args.excludeFolder is not None else []
     
     if args.allFile is not None:
-        allListFile = pd.read_csv(allFile, usecols=[0,4], parse_dates=['Sensor Start'])
+        allListFile = pd.read_csv(allFile, usecols=["Sensor Start","FilePath"], parse_dates=['Sensor Start'])
     elif args.allFolder is not None:
         allListFile = listFile(allFolder, "all", set(exclude))
     else:
         allListFile = []
 
     if args.xtfFile is not None:
-        xtfListFile = pd.read_csv(xtfFile, usecols=[0,4], parse_dates=['Sensor Start'])
+        xtfListFile = pd.read_csv(xtfFile, usecols=["Sensor Start","FilePath"], parse_dates=['Sensor Start'])
     elif args.xtfFolder is not None:
         xtfListFile = listFile(xtfFolder, "xtf", set(exclude))
     else:
         xtfListFile = []
 
     if args.sgySBPFile is not None:
-        sbpListFile = pd.read_csv(sgySBPFile, usecols=[0,4], parse_dates=['Sensor Start'])
+        sbpListFile = pd.read_csv(sgySBPFile, usecols=["Sensor Start","FilePath"], parse_dates=['Sensor Start'])
     elif args.sgySBPFolder is not None:
         sbpListFile = listFile(sgySBPFolder, ('seg', 'sgy', 'segy'), set(exclude))
     else:
         sbpListFile = []
 
     if args.csvMAGFile is not None:
-        magListFile = pd.read_csv(csvMAGFile, usecols=[0,4], parse_dates=['Sensor Start'])
+        magListFile = pd.read_csv(csvMAGFile, usecols=["Sensor Start","FilePath"], parse_dates=['Sensor Start'])
     elif args.csvMAGFolder is not None:
         magListFile = listFile(csvMAGFolder, "csv", set(exclude))
     else:
         magListFile = []        
 
     if args.sgySUHRSFile is not None:
-        suhrsListFile = pd.read_csv(sgySUHRSFile, usecols=[0,4], parse_dates=['Sensor Start'])
+        suhrsListFile = pd.read_csv(sgySUHRSFile, usecols=["Sensor Start","FilePath"], parse_dates=['Sensor Start'])
     elif args.sgySUHRSFolder is not None:
         suhrsListFile = listFile(sgySUHRSFolder, ('seg', 'sgy', 'segy'), set(exclude))
     else:
@@ -490,13 +490,24 @@ def process(args, cmd):
     #dfALL['Difference Start [s]'] = dfALL['Difference Start [s]'] / np.timedelta64(1, 's')
     dfALL = movecol(dfALL, cols_to_move=['Difference Start [s]'], ref_col='Sensor Start', place='After')
     
-    coldrop =["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "SPL LineName", "Sensor New LineName"]
-    dfMissingSPL = dfMissingSPL[dfMissingSPL['Session Start'].isnull()] # df Missing SPL
-    dfMissingSPL = dfMissingSPL.drop(columns=coldrop)
-    dfMissingSPL = dfMissingSPL[["Sensor Start", "Sensor FileName", "FilePath"]]
-    
-    dfsgy = dfsgy.drop(columns=coldrop)
-    dfsgy = dfsgy[["Sensor Start", "Sensor FileName", "FilePath"]]
+    coldrop1 =["Session Start", "Session End", "Session Name", "Ssession", "Esession", "Session MaxGap", "Difference Start [s]", 
+              "SPL LineName", "Sensor New LineName"]
+    dfMissingSPL = dfALL.sort_values('Sensor Start')    
+    dfMissingSPL['Ssession'] = dfMissingSPL['Session Name']
+    dfMissingSPL['Ssession'] = dfMissingSPL['Ssession'].ffill()
+    dfMissingSPL['Ssession'] = 'Before: ' + dfMissingSPL['Ssession'].astype(str)    
+    dfMissingSPL['Esession'] = dfMissingSPL['Session Name']
+    dfMissingSPL['Esession'] = dfMissingSPL['Esession'].bfill()
+    dfMissingSPL['Esession'] = 'After: ' + dfMissingSPL['Esession'].astype(str)
+    dfMissingSPL = dfMissingSPL[dfMissingSPL['Session Start'].isnull()] # df Missing SPL 
+    dfMissingSPL['Sessions'] = dfMissingSPL[['Ssession', 'Esession']].agg('\n'.join, axis=1)
+    dfMissingSPL = dfMissingSPL.drop(columns=coldrop1)
+    dfMissingSPL = dfMissingSPL[["Sensor Start", "Sensor FileName", "Sensor Type", "Sessions", "Vessel Name", "FilePath"]]
+
+    coldrop2 =["Session Start", "Session End", "Session Name", "Session MaxGap", "Difference Start [s]", 
+              "SPL LineName", "Sensor New LineName"]    
+    dfsgy = dfsgy.drop(columns=coldrop2)
+    dfsgy = dfsgy[["Sensor Start", "Sensor FileName", "Sensor Type", "Vessel Name", "FilePath"]]
     
     dfSPLProblem = dfFINAL[dfFINAL['SPL'].isin(['NoLineNameFound', 'EmptySPL', 'SPLtoSmall'])]
     dfSPLProblem = dfSPLProblem.drop_duplicates(subset='Session Start', keep='first')
@@ -646,21 +657,29 @@ def process(args, cmd):
     
     for df, (namews, ws) in zip(ListDF, w.items()):
         if namews != 'Summary_Process_Log':
-            list1 = ['List_Transposed', 'Missing_SPL', 'MBES_NotMatching', 'SSS_NotMatching', 'SBP_NotMatching', 'MAG_NotMatching', 'SUHRS_NotMatching']
-            list2 = ['Missing_SPL', 'Skip_SSS_Files', 'Duplicated_Sensor_Data', 'Wrong_SBP_Time']
+            list1 = ['List_Transposed', 'MBES_NotMatching', 'SSS_NotMatching', 'SBP_NotMatching', 'MAG_NotMatching', 
+                     'SUHRS_NotMatching', 'Duplicated_SPL_Name']
+            list2 = ['Skip_SSS_Files', 'Duplicated_Sensor_Data', 'Wrong_SBP_Time'] # TODO improve formation
             for col_num, value in enumerate(df.columns.values):
                 ws.set_row(0, 25)
                 ws.write(0, col_num + 1, value, header_format)                
             if namews == 'Full_List':                
                 ws.autofilter(0, 0, df.shape[0], df.shape[1])
                 ws.set_column(0, 0, 11, cell_format) # ID
-                ws.set_column(df.columns.get_loc('Sensor Start')+1, df.columns.get_loc('Session End')+1, 24, cell_format) # DateTime
-                ws.set_column(df.columns.get_loc('Session Name')+1, df.columns.get_loc('Session Name')+1, 20, session_format) # Session Name
-                ws.set_column(df.columns.get_loc('Session MaxGap')+1, df.columns.get_loc('Sensor Type')+1, 20, cell_format) # Session Info
+                ws.set_column(df.columns.get_loc('Sensor Start')+1, df.columns.get_loc('Session End')+1, 24, cell_format) 
+                ws.set_column(df.columns.get_loc('Session Name')+1, df.columns.get_loc('Session Name')+1, 20, session_format) 
+                ws.set_column(df.columns.get_loc('Session MaxGap')+1, df.columns.get_loc('Sensor Type')+1, 20, cell_format) 
                 #ws.set_column(df.columns.get_loc('FilePath')+1, df.columns.get_loc('FilePath')+1, 150, cell_format)
                 ws.set_column(df.columns.get_loc('Sensor FileName')+1, df.columns.get_loc('Sensor FileName')+1, 50, cell_format)
                 ws.set_column(df.columns.get_loc('SPL LineName')+1, df.columns.get_loc('SPL LineName')+1, 20, cell_format)
                 ws.set_column(df.columns.get_loc('SPL LineName')+2, df.shape[1], 150, cell_format) # SPL Name
+            elif namews == 'Missing_SPL':
+                ws.autofilter(0, 0, df.shape[0], df.shape[1])
+                ws.set_column(0, 0, 11, cell_format) # ID
+                ws.set_column(df.columns.get_loc('Sensor Start')+1, df.columns.get_loc('Sensor Start')+1, 24, cell_format)
+                ws.set_column(df.columns.get_loc('Sensor FileName')+1, df.columns.get_loc('Sensor FileName')+1, 50, cell_format)
+                ws.set_column(df.columns.get_loc('Sensor Type')+1, df.columns.get_loc('Vessel Name')+1, 24, session_format)
+                ws.set_column(df.columns.get_loc('FilePath')+1, df.columns.get_loc('FilePath')+1, 150, cell_format)
             elif namews in list2:                
                 ws.autofilter(0, 0, df.shape[0], df.shape[1])
                 ws.set_column(0, 0, 11, cell_format) # ID
@@ -669,9 +688,9 @@ def process(args, cmd):
             elif namews in list1:
                 ws.autofilter(0, 0, df.shape[0], df.shape[1])
                 ws.set_column(0, 0, 11, cell_format) # ID
-                ws.set_column(df.columns.get_loc('Session Start')+1, df.columns.get_loc('Session End')+1, 22, cell_format) # DateTime
-                ws.set_column(df.columns.get_loc('Session Name')+1, df.columns.get_loc('Session Name')+1, 20, session_format) # Session Name
-                ws.set_column(df.columns.get_loc('Session MaxGap')+1, df.columns.get_loc('SPL')+1, 20, cell_format) # Session Info
+                ws.set_column(df.columns.get_loc('Session Start')+1, df.columns.get_loc('Session End')+1, 22, cell_format) 
+                ws.set_column(df.columns.get_loc('Session Name')+1, df.columns.get_loc('Session Name')+1, 20, session_format)
+                ws.set_column(df.columns.get_loc('Session MaxGap')+1, df.columns.get_loc('SPL')+1, 20, cell_format) 
                 ws.set_column(df.columns.get_loc('SPL')+2, df.shape[1], 50, cell_format) # Sensors           
 
         #    for i, width in enumerate(get_col_widths(df)): # Autosize will not work because of the "\n" in the text
@@ -854,15 +873,15 @@ def SPL2CSV(SPLFileName, Path):
     if len(dfS) < 5:
         er = SPLFileName
         lnValue = "SPLtoSmall"
-        return SessionStart, SessionEnd, lnValue, er, maxGap, SessionName
+        return SessionStart, SessionEnd, lnValue, er, maxGap, str(SessionName)
     if not LineName: 
         er = SPLFileName
         lnValue = "NoLineNameFound"
-        return SessionStart, SessionEnd, lnValue, er, maxGap, SessionName      
+        return SessionStart, SessionEnd, lnValue, er, maxGap, str(SessionName)      
     else:
         er = ""
         lnValue = LineName
-        return SessionStart, SessionEnd, lnValue, er, maxGap, SessionName
+        return SessionStart, SessionEnd, lnValue, er, maxGap, str(SessionName)
 
 # SPL convertion
 def splfc(splList, SPLFormat, dfSPL, dfer, dfSummary, outputFolder, cmd):
@@ -965,7 +984,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             
             progressBar(cmd, pbar, index, lsFile)
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", vessel, fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
                                          ignore_index=True) 
         
     if firstrun == 'File':
@@ -975,7 +994,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             fStart = row['Sensor Start']             
             progressBar(cmd, pbar, index, lsFile)                   
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["", "", "", "", "", fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", vessel, fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
                                          ignore_index=True)        
                           
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowSensor)) # cmd vs GUI
@@ -1034,6 +1053,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             #            columns=["Sensor Start", "Vessel Name", "FilePath", "Sensor FileName"])  
        
     # Droping duplicated and creating a log.
+    # TODO remove duplicated created by buffer
     dfCountDupl = dftmp[dftmp.duplicated(subset='Sensor Start', keep=False)].sort_values('Sensor Start')
     dfDuplSensor = dfDuplSensor.append(dftmp[dftmp.duplicated(subset='Sensor Start', keep=False)].sort_values('Sensor Start'))
     if not dfCountDupl.empty:
