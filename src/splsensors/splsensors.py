@@ -48,7 +48,7 @@ if len(sys.argv) >= 2:
         
 # GUI Configuration
 @Gooey(
-    program_name='Linename comparison and rename tool between SPL and sensors',
+    program_name='Linename comparison tool between SPL and sensors',
     progress_regex=r"^progress: (?P<current>\d+)/(?P<total>\d+)$",
     progress_expr="current / total * 100",
     hide_progress_msg=True,
@@ -72,8 +72,8 @@ if len(sys.argv) >= 2:
                 'type': 'AboutDialog',
                 'menuTitle': 'About',
                 'name': 'spl-sensors-comp-ren',
-                'description': 'Linename comparison and rename tool between SPL and sensors',
-                'version': '0.3.5',
+                'description': 'Linename comparison tool between SPL and sensors',
+                'version': '0.3.6',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -90,7 +90,7 @@ if len(sys.argv) >= 2:
     )
 
 def main():
-    desc = "Linename comparison and rename tool between SPL and sensors"    
+    desc = "Linename comparison tool between SPL and sensors"    
     parser = GooeyParser(description=desc)
     
     splopt = parser.add_argument_group('SPL Options', gooey_options={'columns': 1})
@@ -98,7 +98,6 @@ def main():
     sensor2sopt = parser.add_argument_group('Sensors Options (Others Runs)', description='This option can be use to speed up the creation of the final list.\nUse this option if you do not need to re-read the sensor files\nLeave the field blank if you do not need to process the sensor\nPLEASE THE FILES SHOULD BE IN A OTHER FOLDER THAT THE OUTPUT FOLDER SELECTED IN THE TOOL!!!!!', gooey_options={'columns': 1})
     outputsopt = parser.add_argument_group('Output Options', gooey_options={'columns': 1})
     additionalopt = parser.add_argument_group('Additional Options', gooey_options={'columns': 1})
-    renameopt = parser.add_argument_group('Rename Options')
      
     # SPL Arguments
     splopt.add_argument(
@@ -117,7 +116,7 @@ def main():
         metavar='SPL Position File Name', 
         widget='TextField',
         #default='FugroBrasilis-CRP-Position',
-        help='SPL position file to be use to rename the sensor without extention.')
+        help='SPL position file to be use to compare the sensor, without extention.')
     
     splopt.add_argument(
         '-b', '--buffer',
@@ -236,14 +235,6 @@ def main():
         type=str,
         #default='DNP, DoNotProcess',
         help='List all folder that need to be excluded from the recurcive search.\n(eg.: DNP,DoNotProcess) Comma separated and NO WHITESPACE!\nNote: This just apply to the sensors folders')       
-
-    # Rename Option
-    renameopt.add_argument(
-        '-n', '--rename',
-        dest='rename',
-        metavar='Rename the files?', 
-        choices=['yes', 'no'], 
-        default='no')
     
     # Use to create help readme.md. TO BE COMMENT WHEN DONE
     # if len(sys.argv)==1:
@@ -923,7 +914,7 @@ def splfc(splList, SPLFormat, dfSPL, dfer, dfSummary, outputFolder, cmd):
 # Sensors convertion and logs creation
 def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL, dfSummary, dfFINAL, dfMissingSPL, dfDuplSensor, dfSkip, dfsgy, vessel):
     """
-    Main function to create and rename the sensors files.    
+    Main function to create the sensors files.    
     """
     print('')
     print('##################################################')
@@ -1007,7 +998,6 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     nowListing = datetime.datetime.now()  # record time of the subprocess
     
     # Logs and renaming the Sensors files
-    # TODO change the order to handle buffer. First occurence
     for index, row in dfSPL.iterrows():                          
         splStart = row['Session Start']
         splEnd = row['Session End']
@@ -1090,7 +1080,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     #dfMissingSPL['Sensor Type'] = ssFormat
 
     dfFINAL.set_index('Session Start', inplace=True)
-    dfSensors = dfSensors.dropna(subset=['Session Start']) # Drop Missing SPL
+    dfSensors.dropna(subset=['Session Start'], inplace = True) # Drop Missing SPL
     dfSensors.rename(columns={"Sensor FileName": ssFormat}, inplace = True)    
     dfSensors = dfSensors.groupby('Session Start')[ssFormat].apply(lambda x: '\n'.join(x)).to_frame().reset_index()
     dfSensors.set_index('Session Start', inplace=True)

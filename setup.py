@@ -27,8 +27,8 @@ extras_require = {
 
 setup(
     name='splsensors',
-    version='0.3.5',
-    description='Linename comparison and rename tool between SPL and sensors',
+    version='0.3.6',
+    description='Linename comparison tool between SPL and sensors',
     long_description=readme,
     author='Patrice Ponchant',
     author_email='patrice.ponchant@fugro.com',
@@ -40,7 +40,7 @@ setup(
     license=license,
     packages=find_namespace_packages(where='src'),
     package_dir={'': 'src'},
-    keywords='FBF FBZ POS MBES SSS SBP MAG Comparison Rename',
+    keywords='FBF FBZ POS MBES SSS SBP MAG Comparison',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Natural Language :: English',
