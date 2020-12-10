@@ -71,11 +71,11 @@ if len(sys.argv) >= 2:
         'items': [{
                 'type': 'AboutDialog',
                 'menuTitle': 'About',
-                'name': 'spl-sensors-comp-ren',
+                'name': 'splsensors',
                 'description': 'Linename comparison tool between SPL and sensors',
                 'version': '0.3.6',
                 'copyright': '2020',
-                'website': 'https://github.com/Shadoward/spl-sensors-comp-ren',
+                'website': 'https://github.com/Shadoward/splsensors',
                 'developer': 'patrice.ponchant@fugro.com',
                 'license': 'MIT'
                 }]
