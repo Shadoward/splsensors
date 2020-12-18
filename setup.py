@@ -27,7 +27,7 @@ extras_require = {
 
 setup(
     name='splsensors',
-    version='0.3.6',
+    version='0.3.7',
     description='Linename comparison tool between SPL and sensors',
     long_description=readme,
     author='Patrice Ponchant',
@@ -42,7 +42,7 @@ setup(
     package_dir={'': 'src'},
     keywords='FBF FBZ POS MBES SSS SBP MAG Comparison',
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Beta',
         'Natural Language :: English',
         'Topic :: Scientific/Engineering'
         "Programming Language :: Python :: 3",

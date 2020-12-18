@@ -27,7 +27,7 @@ from xlsxwriter.utility import xl_rowcol_to_cell
 
 ##### CMD packages #####
 from tqdm import tqdm
-#from tabulate import tabulate
+import tabulate #pyinstaller problem
 
 ##### GUI packages #####
 from gooey import Gooey, GooeyParser
@@ -73,7 +73,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'splsensors',
                 'description': 'Linename comparison tool between SPL and sensors',
-                'version': '0.3.6',
+                'version': '0.3.7',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/splsensors',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -272,7 +272,7 @@ def process(args, cmd):
     
     # Defined Global Dataframe
     col = ["Session Start", "Difference Start [s]", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start",
-            "FilePath", "Sensor Type", "Sensor FileName", "SPL LineName", "Sensor New LineName"]
+            "FilePath", "Sensor Type", "Sensor FileName", "SPL LineName"]
     dfFINAL = pd.DataFrame(columns = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", 
                                       "SPL", "MBES", "SBP", "SSS", "MAG", "SUHRS"])
     dfSPL = pd.DataFrame(columns = ["Session Start", "Session End", "SPL LineName", "Session MaxGap", "Session Name"])       
@@ -482,7 +482,7 @@ def process(args, cmd):
     dfALL = movecol(dfALL, cols_to_move=['Difference Start [s]'], ref_col='Sensor Start', place='After')
     
     coldrop1 =["Session Start", "Session End", "Session Name", "Ssession", "Esession", "Session MaxGap", "Difference Start [s]", 
-              "SPL LineName", "Sensor New LineName"]
+              "SPL LineName"]
     dfMissingSPL = dfALL.sort_values('Sensor Start')    
     dfMissingSPL['Ssession'] = dfMissingSPL['Session Name']
     dfMissingSPL['Ssession'] = dfMissingSPL['Ssession'].ffill()
@@ -496,7 +496,7 @@ def process(args, cmd):
     dfMissingSPL = dfMissingSPL[["Sensor Start", "Sensor FileName", "Sensor Type", "Sessions", "Vessel Name", "FilePath"]]
 
     coldrop2 =["Session Start", "Session End", "Session Name", "Session MaxGap", "Difference Start [s]", 
-              "SPL LineName", "Sensor New LineName"]    
+              "SPL LineName"]    
     dfsgy = dfsgy.drop(columns=coldrop2)
     dfsgy = dfsgy[["Sensor Start", "Sensor FileName", "Sensor Type", "Vessel Name", "FilePath"]]
     
@@ -924,7 +924,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
     # Define Dataframe
     # Need to be declare fully in case of manipulated df (DO NOT CHANGE)
     col = ["Session Start", "Session End", "Session Name", "Session MaxGap", "Vessel Name", "Sensor Start", "Difference Start [s]",
-           "Sensor Type", "Sensor FileName", "SPL LineName", "FilePath", "Sensor New LineName"]
+           "Sensor Type", "Sensor FileName", "SPL LineName", "FilePath"]
     dfSensors = pd.DataFrame(columns = col)
     dftmp = pd.DataFrame(columns = col)
 
@@ -975,7 +975,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             
             progressBar(cmd, pbar, index, lsFile)
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["", "", "", "", vessel, fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", vessel, fStart, "", SType, fName, "", f], index=dfSensors.columns), 
                                          ignore_index=True) 
         
     if firstrun == 'File':
@@ -985,7 +985,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             fStart = row['Sensor Start']             
             progressBar(cmd, pbar, index, lsFile)                   
             # Add the Sensor Info in a df
-            dfSensors = dfSensors.append(pd.Series(["", "", "", "", vessel, fStart, "", SType, fName, "", f, ""], index=dfSensors.columns), 
+            dfSensors = dfSensors.append(pd.Series(["", "", "", "", vessel, fStart, "", SType, fName, "", f], index=dfSensors.columns), 
                                          ignore_index=True)        
                           
     pbar.close() if cmd else print("Subprocess Duration: ", (datetime.datetime.now() - nowSensor)) # cmd vs GUI
@@ -1010,17 +1010,14 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
             #print(el)
             SensorFile =  el['FilePath']
             SensorStart = el['Sensor Start']           
-            SensorDiff = (splStart - SensorStart) / np.timedelta64(1, 's')           
-            FolderName = os.path.split(SensorFile)[0]
+            SensorDiff = (splStart - SensorStart) / np.timedelta64(1, 's')  
             SensorName = os.path.splitext(os.path.basename(SensorFile))[0]
-            if splName in SensorName: # use for conditional formating and because I group linename under the same Session some sensor can contain or not the SPL linename
+            if str(splName) in SensorName: # use for conditional formating and because I group linename under the same Session some sensor can contain or not the SPL linename
                 SNameCond = SensorName + ' [OK]'
             else:
-                SNameCond = SensorName + ' [WRONG]'
-            SensorExt =  os.path.splitext(os.path.basename(SensorFile))[1]                              
-            SensorNewName = FolderName + '\\' + SensorName + '_' + splName + SensorExt
+                SNameCond = SensorName + ' [WRONG]'                      
             dftmp = dftmp.append(pd.Series([splStart, splEnd, SessionName, SessionGap, vessel, SensorStart, SensorDiff, SType, 
-                                            SNameCond, splName, SensorFile, SensorNewName], index=dftmp.columns), ignore_index=True)
+                                            SNameCond, splName, SensorFile], index=dftmp.columns), ignore_index=True)
  
     print("Subprocess Duration: ", (datetime.datetime.now() - nowListing)) # cmd vs GUI
     
@@ -1051,7 +1048,7 @@ def sensorsfc(firstrun, lsFile, ssFormat, ext, cmd, buffer, outputFolder, dfSPL,
         print(f"A total of {int(len(dfCountDupl.index)/2)} *{ext} file(s) was/were duplicated.")
         print(f"Please check the Duplicated_Sensor_Data sheet in the _{vessel}_FINAL_Log.xlsx for more information.")
         #dfDuplSensor.to_csv(outputFolder + "\\" + vessel + "_" + ssFormat + "_Duplicate_Log.csv", index=True)
-        # Because of the buffer we need to classify duplicated snsors start and difference time to remove the sensor that was
+        # Because of the buffer we need to classify duplicated sensors start and difference time to remove the sensor that was
         # classify wrongly. Normally last sensors split will be add to the correct session and the session after with big buffer
         dftmp = dftmp.sort_values('Difference Start [s]')
         #dftmp.to_csv(outputFolder + "\\" + vessel + "_" + ssFormat + "_dftmp_before_Log.csv", index=False)

@@ -16,6 +16,7 @@ datas = [
     (os.path.join(obspy_root, "imaging", "data"), os.path.join('obspy', 'imaging', 'data')),
     (os.path.join(obspy_root, "taup", "data"), os.path.join('obspy', 'taup', 'data')),
     (os.path.join(obspy_root, "geodetics", "data"), os.path.join('obspy', 'geodetics', 'data')),
+    (os.path.join(obspy_root, "lib"), os.path.join('obspy', 'lib'))
 ]
 
 # Plugins are defined in the metadata (.egg-info) directory, but if we grab the whole thing it causes
