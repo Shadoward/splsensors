@@ -73,7 +73,7 @@ if len(sys.argv) >= 2:
                 'menuTitle': 'About',
                 'name': 'splsensors',
                 'description': 'Linename comparison tool between SPL and sensors',
-                'version': '0.3.7',
+                'version': '0.3.8',
                 'copyright': '2020',
                 'website': 'https://github.com/Shadoward/splsensors',
                 'developer': 'patrice.ponchant@fugro.com',
@@ -483,7 +483,8 @@ def process(args, cmd):
     
     coldrop1 =["Session Start", "Session End", "Session Name", "Ssession", "Esession", "Session MaxGap", "Difference Start [s]", 
               "SPL LineName"]
-    dfMissingSPL = dfALL.sort_values('Sensor Start')    
+    dfMissingSPL = dfALL.sort_values('Sensor Start')
+    dfRenameLN = dfMissingSPL # use for the new rename otion to rename just the linename
     dfMissingSPL['Ssession'] = dfMissingSPL['Session Name']
     dfMissingSPL['Ssession'] = dfMissingSPL['Ssession'].ffill()
     dfMissingSPL['Ssession'] = 'Before: ' + dfMissingSPL['Ssession'].astype(str)    
@@ -494,7 +495,13 @@ def process(args, cmd):
     dfMissingSPL['Sessions'] = dfMissingSPL[['Ssession', 'Esession']].agg('\n'.join, axis=1)
     dfMissingSPL = dfMissingSPL.drop(columns=coldrop1)
     dfMissingSPL = dfMissingSPL[["Sensor Start", "Sensor FileName", "Sensor Type", "Sessions", "Vessel Name", "FilePath"]]
-
+    
+    dfRenameLN['New LineName'] = dfRenameLN['Sensor FileName']
+    dfRenameLN = dfRenameLN.drop(columns=["Session Start", "Session End", "Session Name", "Session MaxGap", "Difference Start [s]"])
+    dfRenameLN = dfRenameLN[dfRenameLN.apply(lambda row: '[WRONG]' in str(row["Sensor FileName"]), axis=1)]
+    dfRenameLN = dfRenameLN[["Sensor Start", "Sensor FileName", "SPL LineName", "New LineName", "Sensor Type", 
+                             "Vessel Name", "FilePath"]]
+    
     coldrop2 =["Session Start", "Session End", "Session Name", "Session MaxGap", "Difference Start [s]", 
               "SPL LineName"]    
     dfsgy = dfsgy.drop(columns=coldrop2)
@@ -515,14 +522,15 @@ def process(args, cmd):
     
     writer = pd.ExcelWriter(outputFolder + "\\_" + vessel + '_FINAL_Log.xlsx', engine='xlsxwriter', datetime_format='dd mmm yyyy hh:mm:ss.000')
       
-    sheet_names = ['Summary_Process_Log', 'Full_List', 'List_Transposed', 'Missing_SPL', 'MBES_NotMatching', 'SSS_NotMatching',
+    sheet_names = ['Summary_Process_Log', 'Full_List', 'List_Transposed', 'Rename_LN', 'Missing_SPL', 'MBES_NotMatching', 'SSS_NotMatching',
                    'SBP_NotMatching', 'MAG_NotMatching', 'SUHRS_NotMatching', 'Duplicated_SPL_Name', 'Duplicated_Sensor_Data',
                    'SPL_Problem', 'Skip_SSS_Files', 'Wrong_SBP_Time']
               
     dfSummary.to_excel(writer, sheet_name='Summary_Process_Log', startrow=5)
     
     dfALL.sort_values('Sensor Start').to_excel(writer, sheet_name='Full_List')    
-    dfFINAL.sort_values('Session Start').to_excel(writer, sheet_name='List_Transposed') 
+    dfFINAL.sort_values('Session Start').to_excel(writer, sheet_name='List_Transposed')
+    dfRenameLN.to_excel(writer, sheet_name='Rename_LN')
     dfMissingSPL.sort_values('Sensor Start').to_excel(writer, sheet_name='Missing_SPL')
     
     for name, df in d.items():
@@ -603,6 +611,7 @@ def process(args, cmd):
     textS = [bold, 'Summary_Process_Log', normal, ': Summary log of the processing']
     textFull = [bold, 'Full_List', normal, ': Full log list of all sensors without duplicated and skip files. (Sensors Not Transposed)']
     textTrans = [bold, 'List_Transposed', normal, ': Log list of all sensors transposed and matching all sessions)']
+    textRename = [bold, 'Rename_LN', normal, ': Rename Sheet to be use if you just want to use the LineName option in the rename tool.)']
     textMissingSPL = [bold, 'Missing_SPL', normal, ': List of all sensors that have missing SPL file.']
     textMBES = [bold, 'MBES_NotMatching', normal, ': MBES log list of all files that do not match the SPL name; without duplicated and skip files']
     textSSS = [bold, 'SSS_NotMatching', normal, ': SSS log list of all files that do not match the SPL name; without duplicated and skip files']
@@ -615,11 +624,11 @@ def process(args, cmd):
     textSkip = [bold, 'Skip_SSS_Files', normal, ': List of all SSS data that have a file size less than 1 MB']
     textsgy = [bold, 'Wrong_SBP_Time', normal, ': List of all SBP data that have a wrong timestamp']
     
-    ListT = [textS, textFull, textTrans, textMissingSPL, textMBES, textSSS, textSBP, textMAG, textSUHRS, textDuplSPL, textDuplSensor, 
+    ListT = [textS, textFull, textTrans, textRename, textMissingSPL, textMBES, textSSS, textSBP, textMAG, textSUHRS, textDuplSPL, textDuplSensor, 
              textSPLProblem, textSkip, textsgy]
-    ListHL = ['internal:Summary_Process_Log!A1', 'internal:Full_List!A1', 'internal:List_Transposed!A1', 'internal:Missing_SPL!A1', 
-              'internal:MBES_NotMatching!A1', 'internal:SSS_NotMatching!A1', 'internal:SBP_NotMatching!A1', 'internal:MAG_NotMatching!A1',
-              'internal:SUHRS_NotMatching!A1','internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 
+    ListHL = ['internal:Summary_Process_Log!A1', 'internal:Full_List!A1', 'internal:List_Transposed!A1', 'internal:Rename_LN!A1', 
+              'internal:Missing_SPL!A1', 'internal:MBES_NotMatching!A1', 'internal:SSS_NotMatching!A1', 'internal:SBP_NotMatching!A1', 
+              'internal:MAG_NotMatching!A1', 'internal:SUHRS_NotMatching!A1','internal:Duplicated_SPL_Name!A1', 'internal:Duplicated_Sensor_Data!A1', 
               'internal:SPL_Problem!A1', 'internal:Skip_SSS_Files!A1', 'internal:Wrong_SBP_Time!A1']
                 
     w['Summary_Process_Log'].write(0, 0, text1, bold)
@@ -643,8 +652,8 @@ def process(args, cmd):
         if name != 'Summary_Process_Log':
             ws.write_url(0, 0, 'internal:Summary_Process_Log!A1', hlink, string='Summary')
     
-    ListDF = [dfSummary, dfALL, dfFINAL, dfMissingSPL, d['MBES'], d['SSS'], d['SBP'], d['MAG'], d['SUHRS'], dfDuplSPL, dfDuplSensor, 
-              dfSPLProblem, dfSkip, dfsgy]
+    ListDF = [dfSummary, dfALL, dfFINAL, dfRenameLN, dfMissingSPL, d['MBES'], d['SSS'], d['SBP'], d['MAG'], d['SUHRS'], 
+              dfDuplSPL, dfDuplSensor, dfSPLProblem, dfSkip, dfsgy]
     
     for df, (namews, ws) in zip(ListDF, w.items()):
         if namews != 'Summary_Process_Log':
@@ -669,6 +678,14 @@ def process(args, cmd):
                 ws.set_column(0, 0, 11, cell_format) # ID
                 ws.set_column(df.columns.get_loc('Sensor Start')+1, df.columns.get_loc('Sensor Start')+1, 24, cell_format)
                 ws.set_column(df.columns.get_loc('Sensor FileName')+1, df.columns.get_loc('Sensor FileName')+1, 50, cell_format)
+                ws.set_column(df.columns.get_loc('Sensor Type')+1, df.columns.get_loc('Vessel Name')+1, 24, session_format)
+                ws.set_column(df.columns.get_loc('FilePath')+1, df.columns.get_loc('FilePath')+1, 150, cell_format)
+            elif namews == 'Rename_LN':
+                ws.autofilter(0, 0, df.shape[0], df.shape[1])
+                ws.set_column(0, 0, 11, cell_format) # ID
+                ws.set_column(df.columns.get_loc('Sensor Start')+1, df.columns.get_loc('Sensor Start')+1, 24, cell_format)
+                ws.set_column(df.columns.get_loc('Sensor FileName')+1, df.columns.get_loc('New LineName')+1, 50, cell_format)
+                ws.set_column(df.columns.get_loc('SPL LineName')+1, df.columns.get_loc('SPL LineName')+1, 20, cell_format)
                 ws.set_column(df.columns.get_loc('Sensor Type')+1, df.columns.get_loc('Vessel Name')+1, 24, session_format)
                 ws.set_column(df.columns.get_loc('FilePath')+1, df.columns.get_loc('FilePath')+1, 150, cell_format)
             elif namews in list2:                
